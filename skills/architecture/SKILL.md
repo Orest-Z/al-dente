@@ -24,6 +24,7 @@ description: Plan or map a TypeScript/JavaScript app's architecture into al-dent
 - `paths`: folders (or files) relative to the project root. A file belongs to the part with the longest matching path, so `src/features/cart` can be its own part inside `src/features`.
 - `uses`: the parts this part may import from. Imports inside a part are always allowed.
 - Part order sets the map colors. Put the parts people look at most first.
+- Tests and stories are left out of the architecture by default. Only add an `"ignore": [globs]` list if the project keeps tests or other non-production code somewhere the defaults miss (they cover `*.test.*`, `*.spec.*`, `__tests__/`, `__mocks__/`, `test/`, `tests/`, `e2e/`, `*.stories.*`).
 
 ## New project
 

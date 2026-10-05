@@ -47,13 +47,14 @@ try {
 }
 
 async function check() {
-  const { RULES_FILE, createResolver, listSources, readRules, violationsIn } = await import('../src/core.js');
+  const { RULES_FILE, createResolver, isIgnored, listSources, readRules, violationsIn } = await import('../src/core.js');
   const rules = readRules(root);
   if (!rules) throw new Error(`no ${RULES_FILE} in ${root}. Ask your agent to design the architecture first.`);
   const resolver = createResolver(root);
   const label = (id) => rules.byId.get(id).label;
-  const files = listSources(root);
-  const broken = files.flatMap((rel) => violationsIn(rules, rel, resolver.importsOf(rel)).map((v) => ({ rel, ...v })));
+  const files = listSources(root).filter((rel) => !isIgnored(rules, rel));
+  const importsOf = (rel) => { try { return resolver.importsOf(rel); } catch { return []; } }; // deleted since the last commit
+  const broken = files.flatMap((rel) => violationsIn(rules, rel, importsOf(rel)).map((v) => ({ rel, ...v })));
 
   if (!broken.length) {
     console.log(`✓ Matches the plan: ${files.length} files across ${rules.parts.length} parts follow ${RULES_FILE}.`);

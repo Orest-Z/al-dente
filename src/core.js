@@ -1,6 +1,7 @@
 // @ts-check
 // Core of al-dente: read the architecture rules, resolve each file's imports
 // (no dependencies, any TypeScript version), and turn them into a part-level graph.
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -9,12 +10,14 @@ export const RULES_FILE = 'al-dente.json';
 export const UNMAPPED = '~unmapped';
 const SOURCE = /\.[cm]?[jt]sx?$/;
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage']);
+/** Not architecture: tests and stories may import anything. A plan can override this with its own "ignore" list. */
+export const DEFAULT_IGNORE = ['**/*.test.*', '**/*.spec.*', '**/__tests__/**', '**/__mocks__/**', '**/test/**', '**/tests/**', '**/e2e/**', '**/*.stories.*'];
 
 /** Project-relative path with forward slashes, e.g. "src/ui/Button.tsx". */
 export const toRel = (/** @type {string} */ root, /** @type {string} */ file) =>
   path.relative(root, path.resolve(root, file)).split(path.sep).join('/');
 
-const skippedDir = (/** @type {string} */ name) => SKIP_DIRS.has(name) || name.startsWith('.');
+export const skippedDir = (/** @type {string} */ name) => SKIP_DIRS.has(name) || name.startsWith('.');
 
 /** Is this a source file inside the project that we should analyse? */
 export function isSource(/** @type {string} */ rel) {
@@ -26,8 +29,14 @@ export function isSource(/** @type {string} */ rel) {
 export const isResolverConfig = (/** @type {string} */ rel) =>
   /(?:^|\/)(?:[tj]sconfig[^/]*|package)\.json$/.test(rel) && !rel.split('/').slice(0, -1).some(skippedDir);
 
-/** Every source file in the project, skipping dependencies, build output and dot-folders. */
+/**
+ * Every source file in the project, skipping dependencies, build output and dot-folders.
+ * In a git repo this is what git sees (tracked + untracked, minus .gitignore), so generated code stays out.
+ */
 export function listSources(/** @type {string} */ root) {
+  // --cached still lists a file deleted since the last commit; readers skip files that are gone.
+  const fromGit = gitFiles(root, ['ls-files', '-z', '--cached', '--others', '--exclude-standard']);
+  if (fromGit?.length) return [...new Set(fromGit)].filter(isSource).sort();
   /** @type {string[]} */
   const out = [];
   const walk = (/** @type {string} */ dir) => {
@@ -40,15 +49,34 @@ export function listSources(/** @type {string} */ root) {
   return out.sort();
 }
 
+/** NUL-separated paths from a git command run in `root`, or null when git or the repo isn't there. */
+function gitFiles(/** @type {string} */ root, /** @type {string[]} */ args) {
+  try {
+    return execFileSync('git', ['-C', root, ...args], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 28, windowsHide: true })
+      .toString('utf8').split('\0').filter(Boolean);
+  } catch { return null; }
+}
+
+/** Is this file ignored by git (e.g. generated code)? False when there's no git. */
+export const isGitIgnored = (/** @type {string} */ root, /** @type {string} */ rel) =>
+  (gitFiles(root, ['check-ignore', '--', rel])?.length ?? 0) > 0; // prints the path and exits 0 only when ignored
+
 // ---------------------------------------------------------------- rules
 
 /**
  * @typedef {{ id: string, label: string, description: string, paths: string[], uses: string[] }} Part
- * @typedef {{ parts: Part[], byId: Map<string, Part>, prefixes: { prefix: string, id: string }[] }} Rules
+ * @typedef {{ parts: Part[], byId: Map<string, Part>, prefixes: { prefix: string, id: string }[], ignore: string[], ignoreRe: RegExp[] }} Rules
  */
 
 const normPath = (/** @type {unknown} */ p) =>
   String(p).replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '');
+
+/** "**\/*.test.*" -> a RegExp over project-relative paths. Supports **, * and ?. */
+const globToRegExp = (/** @type {string} */ glob) => new RegExp(`^${normPath(glob).split(/(\*\*\/?|\*|\?)/).map((t) =>
+  t === '**/' ? '(?:.*/)?' : t === '**' ? '.*' : t === '*' ? '[^/]*' : t === '?' ? '[^/]' : t.replace(/[.+^${}()|[\]\\]/g, '\\$&')).join('')}$`);
+
+/** Files the plan leaves out of the architecture (tests by default): not drawn, not checked. */
+export const isIgnored = (/** @type {Rules} */ rules, /** @type {string} */ rel) => rules.ignoreRe.some((re) => re.test(rel));
 
 /** Load al-dente.json. Returns null when the project has none; throws a readable error when it's invalid. */
 export function readRules(/** @type {string} */ root) {
@@ -73,7 +101,11 @@ export function readRules(/** @type {string} */ root) {
   // Longest prefix wins, so "src/features/cart" can be its own part inside "src/features".
   const prefixes = list.flatMap((p) => p.paths.map((prefix) => ({ prefix, id: p.id })))
     .sort((a, b) => b.prefix.length - a.prefix.length);
-  return { parts: list, byId: new Map(list.map((p) => [p.id, p])), prefixes };
+  if (raw.ignore !== undefined && (!Array.isArray(raw.ignore) || raw.ignore.some((g) => typeof g !== 'string'))) {
+    throw new Error(`"ignore" in ${RULES_FILE} must be a list of globs, like ["**/*.test.ts"]`);
+  }
+  const ignore = raw.ignore ?? DEFAULT_IGNORE;
+  return { parts: list, byId: new Map(list.map((p) => [p.id, p])), prefixes, ignore, ignoreRe: ignore.map(globToRegExp) };
 }
 
 /** Which part a file belongs to, or null if no part claims it. */
@@ -94,7 +126,7 @@ const allowed = (/** @type {Rules} */ rules, /** @type {string} */ from, /** @ty
  * while stepping over strings, so "//" inside a URL string isn't mistaken for a comment.
  * ponytail: regex literals and `${}` with nested backticks aren't lexed; they're rare around imports.
  */
-export function stripComments(/** @type {string} */ src) {
+export function stripComments(/** @type {string} */ src, /** @type {{ start: number, end: number }[]=} */ comments) {
   const out = [];
   let last = 0, i = 0;
   while (i < src.length) {
@@ -102,6 +134,7 @@ export function stripComments(/** @type {string} */ src) {
     if (c === '/' && (d === '/' || d === '*')) {
       const close = d === '/' ? src.indexOf('\n', i) : src.indexOf('*/', i + 2);
       const end = close === -1 ? src.length : d === '/' ? close : close + 2;
+      comments?.push({ start: i, end });
       out.push(src.slice(last, i), src.slice(i, end).replace(/[^\n]/g, ' '));
       last = i = end;
     } else if (c === '"' || c === "'" || c === '`') {
@@ -130,18 +163,43 @@ export function scanImports(/** @type {string} */ src) {
   return found.sort((a, b) => a.pos - b.pos);
 }
 
+/** @typedef {{ spec: string, line: number }} Spec */
+
+/** Specifiers with their line numbers: the part of a file's analysis that only depends on its text, so it can be cached. */
+export function importSpecs(/** @type {string} */ src) {
+  /** @type {Spec[]} */
+  const out = [];
+  let line = 1, at = 0;
+  for (const { spec, pos } of scanImports(src)) {
+    for (let i = src.indexOf('\n', at); i !== -1 && i < pos; i = src.indexOf('\n', i + 1)) { line++; at = i + 1; }
+    out.push({ spec, line });
+  }
+  return out;
+}
+
 const TS_FIRST = ['.ts', '.tsx', '.d.ts', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'];
 const JS_EXT = /\.(?:[cm]?js|jsx)$/;
 
-const readJsonc = (/** @type {string} */ file) =>
-  JSON.parse(stripComments(fs.readFileSync(file, 'utf8')).replace(/,(\s*[}\]])/g, '$1'));
+const parseJsonc = (/** @type {string} */ text) => JSON.parse(stripComments(text).replace(/,(\s*[}\]])/g, '$1'));
+
+/**
+ * Where the resolver reads files from: the disk by default; the history view passes one that
+ * reads a past commit instead (see history.js).
+ * @typedef {{ isFile(abs: string): boolean, read(abs: string): string, dirs(abs: string): string[] }} SourceIO
+ */
+/** @type {SourceIO} */
+export const diskIO = {
+  isFile: (p) => fs.statSync(p, { throwIfNoEntry: false })?.isFile() ?? false,
+  read: (p) => fs.readFileSync(p, 'utf8'),
+  dirs: (p) => fs.readdirSync(p, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name),
+};
 
 /**
  * Resolves imports the way TypeScript and bundlers do, without needing TypeScript itself:
  * relative paths, index files, ".js -> .ts" ESM imports, tsconfig/jsconfig "paths" + "baseUrl"
  * (following "extends" and "references"), and monorepo workspace packages by name.
  */
-export function createResolver(/** @type {string} */ root) {
+export function createResolver(/** @type {string} */ root, /** @type {SourceIO} */ io = diskIO) {
   root = path.resolve(root);
   /** @type {Map<string, boolean>} */
   const isFileCache = new Map();
@@ -150,7 +208,7 @@ export function createResolver(/** @type {string} */ root) {
 
   const isFile = (/** @type {string} */ p) => {
     let hit = isFileCache.get(p);
-    if (hit === undefined) isFileCache.set(p, (hit = fs.statSync(p, { throwIfNoEntry: false })?.isFile() ?? false));
+    if (hit === undefined) isFileCache.set(p, (hit = io.isFile(p)));
     return hit;
   };
 
@@ -187,7 +245,7 @@ export function createResolver(/** @type {string} */ root) {
     if (seen.has(file) || !isFile(file)) return { refs: [] };
     seen.add(file);
     let json;
-    try { json = readJsonc(file); } catch { return { refs: [] }; }
+    try { json = parseJsonc(io.read(file)); } catch { return { refs: [] }; }
     const dir = path.dirname(file);
     /** @type {{ baseUrl?: string, paths?: Record<string, string[]>, pathsDir?: string, refs: string[] }} */
     let opts = { refs: [] };
@@ -232,11 +290,11 @@ export function createResolver(/** @type {string} */ root) {
     /** @type {string[]} */
     let globs = [];
     try {
-      const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+      const pkg = JSON.parse(io.read(path.join(root, 'package.json')));
       globs = Array.isArray(pkg.workspaces) ? pkg.workspaces : pkg.workspaces?.packages ?? [];
     } catch { /* no package.json */ }
     try {
-      const yaml = fs.readFileSync(path.join(root, 'pnpm-workspace.yaml'), 'utf8');
+      const yaml = io.read(path.join(root, 'pnpm-workspace.yaml'));
       for (const m of yaml.matchAll(/^\s*-\s*['"]?([^'"#\n]+?)['"]?\s*$/gm)) globs.push(m[1]);
     } catch { /* not pnpm */ }
     /** @type {{ name: string, dir: string, pkg: any }[]} */
@@ -246,10 +304,10 @@ export function createResolver(/** @type {string} */ root) {
       const wild = /\/\*\*?$/.test(glob);
       const base = path.join(root, glob.replace(/\/\*\*?$/, ''));
       let dirs = [base];
-      if (wild) { try { dirs = fs.readdirSync(base, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => path.join(base, e.name)); } catch { dirs = []; } }
+      if (wild) { try { dirs = io.dirs(base).map((name) => path.join(base, name)); } catch { dirs = []; } }
       for (const dir of dirs) {
         try {
-          const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'));
+          const pkg = JSON.parse(io.read(path.join(dir, 'package.json')));
           if (pkg.name) list.push({ name: pkg.name, dir, pkg });
         } catch { /* not a package */ }
       }
@@ -306,59 +364,193 @@ export function createResolver(/** @type {string} */ root) {
     reset: () => { isFileCache.clear(); configCache.clear(); },
     /** Imports of one file that point at other files in this project. Pass `text` to check unsaved content. */
     importsOf(/** @type {string} */ rel, /** @type {string=} */ text) {
-      const abs = path.join(root, rel);
-      const src = text ?? fs.readFileSync(abs, 'utf8');
+      return this.resolveAll(rel, importSpecs(text ?? io.read(path.join(root, rel))));
+    },
+    /** Resolve specifiers already scanned from `rel` (see importSpecs); only project files are kept. */
+    resolveAll(/** @type {string} */ rel, /** @type {Spec[]} */ specs) {
+      const dir = path.dirname(path.join(root, rel));
       /** @type {Import[]} */
       const out = [];
-      for (const { spec, pos } of scanImports(src)) {
-        const file = resolve(spec, path.dirname(abs));
+      for (const { spec, line } of specs) {
+        const file = resolve(spec, dir);
         if (!file) continue;
         const target = toRel(root, file);
         if (target.startsWith('..') || path.isAbsolute(target) || target.split('/').includes('node_modules')) continue;
-        out.push({ spec, target, line: lineAt(src, pos) });
+        out.push({ spec, target, line });
       }
       return out;
     },
   };
 }
 
-const lineAt = (/** @type {string} */ text, /** @type {number} */ pos) => {
-  let line = 1;
-  for (let i = text.indexOf('\n'); i !== -1 && i < pos; i = text.indexOf('\n', i + 1)) line++;
-  return line;
-};
+// ---------------------------------------------------------------- file descriptions
+
+/** @typedef {{ text: string, from: 'doc' | 'code', exports: string[] }} About */
+
+const IMPORT_LINE = /^(?:#!|import\b|export\s*(?:type\s*)?(?:\*|\{[^}]*\}\s*from\b)|\}\s*from\s*['"]|['"]use [a-z]+['"])/;
+const OPEN_IMPORT = /^(?:import\b[^'"]*|export\s*(?:type\s*)?)\{[^}]*$/; // `import {` that continues on the next lines
+const DIRECTIVE = /^(?:[-=*#~]{3}|@ts-|eslint|prettier|biome|jshint|istanbul|c8\b|global\b|#region|#endregion|<reference|copyright|spdx|@license|@vite-ignore|ponytail:)/i;
+const EXPORT_DECL = /(?:^|[^\w$.])export\s+(?:declare\s+)?(default\s+)?(?:abstract\s+)?(?:async\s+)?(function\*?|class|const|let|var|interface|type|enum|namespace)\s+([\w$]+)/g;
+const EXPORT_LIST = /(?:^|[^\w$.])export\s+(?:type\s+)?\{([^}]*)\}/g;
+
+/** "/** Does X. More detail" -> "Does X." (first paragraph, first sentence, tags and markup dropped). */
+function firstSentence(/** @type {string} */ raw) {
+  const lines = raw.replace(/^\/\*+!?|\*+\/$/g, '').split('\n').map((l) => l.replace(/^\s*(?:\/\/+|\*(?!\/))?\s?/, ''));
+  const para = lines.join('\n').trim().split(/\n\s*\n|\n\s*@/)[0].replace(/:\s*\n[\s\S]*$/, '.');
+  const text = para.replace(/\s+/g, ' ').trim();
+  const sentence = text.match(/^.+?[.!?](?=\s+[A-Z(`"]|$)/)?.[0] ?? text;
+  return sentence.length > 180 ? `${sentence.slice(0, 177).replace(/\s+\S*$/, '')}…` : sentence;
+}
+
+/**
+ * What a file is for, in one line: its own top-of-file doc comment (or the doc on its main export),
+ * otherwise a summary built from what it exports.
+ * ponytail: heuristic; agent-written descriptions would read better, add when users ask for them.
+ */
+export function describeFile(/** @type {string} */ rel, /** @type {string} */ src) {
+  /** @type {{ start: number, end: number }[]} */
+  const comments = [];
+  const code = stripComments(src, comments);
+  const base = rel.split('/').pop() ?? rel;
+  const stem = base.replace(/(?:\.d)?\.[cm]?[jt]sx?$/, '').toLowerCase();
+
+  /** @type {{ name: string, kind: string, pos: number, def?: boolean }[]} */
+  const exps = [];
+  for (const m of code.matchAll(EXPORT_DECL)) exps.push({ name: m[3], kind: m[2], pos: /** @type {number} */ (m.index), def: !!m[1] });
+  for (const m of code.matchAll(/(?:^|[^\w$.])export\s+default\b(?!\s+(?:abstract\s+)?(?:async\s+)?(?:function|class)\b)/g)) exps.push({ name: 'default', kind: 'value', pos: /** @type {number} */ (m.index) });
+  for (const m of code.matchAll(EXPORT_LIST)) {
+    for (const item of m[1].split(',')) {
+      const name = item.trim().replace(/^type\s+/, '').split(/\s+as\s+/).pop()?.trim();
+      if (name) exps.push({ name, kind: 'value', pos: /** @type {number} */ (m.index) });
+    }
+  }
+  for (const m of code.matchAll(/(?:^|[^\w$.])(?:module\.)?exports\.([\w$]+)\s*=/g)) exps.push({ name: m[1], kind: 'value', pos: /** @type {number} */ (m.index) });
+  const names = [...new Set(exps.map((e) => e.name))];
+
+  // Line comments that follow each other are one comment.
+  /** @type {{ start: number, end: number }[]} */
+  const blocks = [];
+  for (const c of comments) {
+    const prev = blocks.at(-1);
+    if (prev && src.startsWith('//', c.start) && src.startsWith('//', prev.start) && /^[ \t]*\r?\n[ \t]*$/.test(src.slice(prev.end, c.start))) prev.end = c.end;
+    else blocks.push({ ...c });
+  }
+  const useful = (/** @type {{ start: number, end: number }} */ c) => {
+    const t = firstSentence(src.slice(c.start, c.end));
+    return t.split(' ').length >= 3 && !DIRECTIVE.test(t) ? t : null;
+  };
+
+  // A doc comment above all code except imports describes the file.
+  let firstCode = code.length, inImport = false, off = 0;
+  for (const line of code.split('\n')) {
+    const t = line.trim();
+    if (inImport) inImport = !/\bfrom\s*['"]/.test(t);
+    else if (OPEN_IMPORT.test(t)) inImport = true;
+    else if (t && !IMPORT_LINE.test(t)) { firstCode = off + line.indexOf(t); break; }
+    off += line.length + 1;
+  }
+  // ...unless it sits right on one export among several: then it documents that export, not the file.
+  const firstExport = names.length > 1 && exps.some((e) => Math.abs(e.pos - firstCode) <= 1);
+  const onOneExport = (/** @type {{ end: number }} */ c) => firstExport && /^[ \t]*\r?\n?[ \t]*$/.test(src.slice(c.end, firstCode));
+  let doc = null;
+  for (const c of blocks) if (c.start < firstCode && !onOneExport(c) && (doc = useful(c))) break;
+  // Otherwise the doc on the main export: the default one, the one named like the file, or the only one.
+  if (!doc) {
+    const main = exps.find((e) => e.def || e.name === 'default') ?? exps.find((e) => e.name.toLowerCase() === stem) ?? (names.length === 1 ? exps[0] : null);
+    const c = main && blocks.find((b) => b.end <= main.pos && !src.slice(b.end, main.pos + 1).trim());
+    if (c) doc = useful(c);
+  }
+  if (doc) return /** @type {About} */ ({ text: doc, from: 'doc', exports: names });
+
+  const list = (/** @type {string[]} */ xs) => xs.slice(0, 3).join(', ') + (xs.length > 3 ? ` +${xs.length - 3} more` : '');
+  const isType = (/** @type {string} */ k) => k === 'type' || k === 'interface';
+  const pick = (/** @type {(e: { name: string, kind: string }) => boolean} */ f) => [...new Set(exps.filter(f).map((e) => e.name))];
+  const hooks = pick((e) => /^use[A-Z]/.test(e.name));
+  const comps = /x$/.test(base) ? pick((e) => /^[A-Z]/.test(e.name) && !isType(e.kind)) : [];
+  const rest = names.filter((n) => !hooks.includes(n) && !comps.includes(n));
+  let text;
+  if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(base) || /(?:^|\/)(?:__tests__|tests?)\//.test(rel)) {
+    const named = (/** @type {string} */ fn) => [...new Set([...code.matchAll(new RegExp(`\\b${fn}\\s*\\(\\s*(['"\`])([^'"\`\\n]+)\\1`, 'g'))].map((m) => m[2]))];
+    const suites = named('describe').length ? named('describe') : named('test').concat(named('it'));
+    text = suites.length ? `Tests for ${list(suites)}` : 'Tests';
+  } else if (/\.d\.[cm]?ts$/.test(base)) text = names.length ? `Type declarations: ${list(names)}` : 'Global type declarations';
+  else if (/\.config\.[cm]?[jt]s$/.test(base)) text = 'Build or tool configuration';
+  else if (!names.length) text = 'Entry point: runs when loaded, exports nothing';
+  else if (exps.every((e) => isType(e.kind))) text = `Types: ${list(names)}`;
+  else if (comps.length || hooks.length) {
+    text = [comps.length && `React component${comps.length > 1 ? 's' : ''}: ${list(comps)}`, hooks.length && `hook${hooks.length > 1 ? 's' : ''}: ${list(hooks)}`]
+      .filter(Boolean).join('; ').replace(/^h/, 'H') + (rest.length ? `; also exports ${list(rest)}` : '');
+  } else text = `Exports ${list(names)}`;
+  return /** @type {About} */ ({ text, from: 'code', exports: names });
+}
 
 // ---------------------------------------------------------------- graph
 
 /** Imports in `rel` that cross into a part its own part is not allowed to use. */
 export function violationsIn(/** @type {Rules} */ rules, /** @type {string} */ rel, /** @type {Import[]} */ imports) {
   const from = partOf(rules, rel);
-  if (!from) return [];
+  if (!from || isIgnored(rules, rel)) return [];
   return imports.flatMap((imp) => {
     const to = partOf(rules, imp.target);
     return to && to !== from && !allowed(rules, from, to) ? [{ ...imp, from, to }] : [];
   });
 }
 
-const MAX_LISTED = 50; // per edge, keeps the payload small on big repos
+/** How one file's imports changed between two versions: parts it started/stopped using, rule breaks added/fixed. */
+export function importDelta(/** @type {Rules} */ rules, /** @type {string} */ rel, /** @type {Import[]} */ before, /** @type {Import[]} */ after) {
+  const part = partOf(rules, rel);
+  const key = (/** @type {Import} */ v) => `${v.target}|${v.spec}`;
+  const was = violationsIn(rules, rel, before), now = violationsIn(rules, rel, after);
+  const slim = (/** @type {Import & { to: string }} */ v) => ({ line: v.line, spec: v.spec, target: v.target, to: v.to });
+  const parts = (/** @type {Import[]} */ imps) => [...new Set(imps.map((i) => partOf(rules, i.target)).filter((p) => p && p !== part))];
+  const pb = parts(before), pa = parts(after);
+  return {
+    part,
+    links: pa,
+    gained: pa.filter((p) => !pb.includes(p)),
+    lost: pb.filter((p) => !pa.includes(p)),
+    broke: now.filter((v) => !was.some((w) => key(w) === key(v))).map(slim),
+    fixed: was.filter((v) => !now.some((w) => key(w) === key(v))).map(slim),
+    violations: now.length,
+  };
+}
+
+/**
+ * One file as the map shows it: its part, what it's for, and every import with the part it lands in
+ * (`to` is null for files no part claims). Imports of ignored files (tests) are left out.
+ */
+export const fileEntry = (/** @type {Rules} */ rules, /** @type {string} */ rel, /** @type {Import[]} */ imports, /** @type {About | null | undefined} */ about) => ({
+  part: partOf(rules, rel),
+  about: about ?? null,
+  imports: imports.filter((i) => !isIgnored(rules, i.target)).map((i) => ({ ...i, to: partOf(rules, i.target) })),
+});
 
 /**
  * Aggregate file imports into part-to-part edges.
  * kind: "allowed" (follows the rules), "violation" (breaks them), "unchecked" (touches files no part claims).
+ * The edges carry counts only; which files and lines make them up is in the file index (`index: true`),
+ * which the live server sends once and then patches, so a save never re-sends the whole repo.
  */
-export function buildGraph(/** @type {Rules} */ rules, /** @type {Map<string, Import[]>} */ files) {
-  /** @type {Map<string, { path: string, imports: number }[]>} */
-  const partFiles = new Map(rules.parts.map((p) => [p.id, []]));
-  /** @type {Map<string, { from: string, to: string, kind: string, count: number, imports: { file: string, line: number, spec: string, target: string }[] }>} */
+export function buildGraph(
+  /** @type {Rules} */ rules,
+  /** @type {Map<string, Import[]>} */ files,
+  /** @type {{ index?: boolean, about?: Map<string, About> }} */ { index = false, about = new Map() } = {},
+) {
+  /** @type {Map<string, number>} */
+  const fileCount = new Map(rules.parts.map((p) => [p.id, 0]));
+  /** @type {Map<string, { from: string, to: string, kind: string, count: number }>} */
   const edges = new Map();
   const unmapped = new Set();
-  let importCount = 0;
+  let importCount = 0, counted = 0;
 
   for (const [rel, imports] of files) {
+    if (isIgnored(rules, rel)) continue;
+    counted++;
     const from = partOf(rules, rel);
-    if (from) partFiles.get(from)?.push({ path: rel, imports: imports.length });
-    importCount += imports.length;
+    if (from) fileCount.set(from, /** @type {number} */ (fileCount.get(from)) + 1);
     for (const imp of imports) {
+      if (isIgnored(rules, imp.target)) continue;
+      importCount++;
       const to = partOf(rules, imp.target);
       if (from === to) continue; // inside one part, or between two unclaimed files: not architecture
       if (!from) unmapped.add(rel);
@@ -368,10 +560,9 @@ export function buildGraph(/** @type {Rules} */ rules, /** @type {Map<string, Im
       let edge = edges.get(key);
       if (!edge) {
         const kind = !from || !to ? 'unchecked' : allowed(rules, a, b) ? 'allowed' : 'violation';
-        edges.set(key, (edge = { from: a, to: b, kind, count: 0, imports: [] }));
+        edges.set(key, (edge = { from: a, to: b, kind, count: 0 }));
       }
       edge.count++;
-      if (edge.imports.length < MAX_LISTED) edge.imports.push({ file: rel, line: imp.line, spec: imp.spec, target: imp.target });
     }
   }
 
@@ -381,13 +572,17 @@ export function buildGraph(/** @type {Rules} */ rules, /** @type {Map<string, Im
   return {
     parts: rules.parts.map((p) => ({
       ...p,
-      files: /** @type {any[]} */ (partFiles.get(p.id)),
+      fileCount: /** @type {number} */ (fileCount.get(p.id)),
       violations: edgeList.filter((e) => e.from === p.id && e.kind === 'violation').reduce((n, e) => n + e.count, 0),
     })),
     unmapped: unmapped.size ? [...unmapped].sort() : null,
     edges: edgeList,
     planned,
     violations,
-    stats: { files: files.size, imports: importCount, parts: rules.parts.length },
+    ignore: rules.ignore,
+    stats: { files: counted, imports: importCount, parts: rules.parts.length },
+    ...(index ? {
+      files: Object.fromEntries([...files].filter(([rel]) => !isIgnored(rules, rel)).map(([rel, imports]) => [rel, fileEntry(rules, rel, imports, about.get(rel))])),
+    } : {}),
   };
 }

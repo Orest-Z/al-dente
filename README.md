@@ -10,7 +10,9 @@ al-dente is a live architecture map that your coding agent has to respect. You a
 
 1. **Decide.** Ask Claude to *"design the architecture for this app with al-dente"*. It proposes 2–3 options in plain words, you pick one, and the plan is saved to `al-dente.json`.
 2. **Watch.** Open the live map. Every edit lights up the part being changed, the arrows it touches, and the parts that might be affected.
-3. **Guard.** If an edit breaks the plan (say, a UI component importing the database directly), the arrow turns red and Claude gets told right away, with the file and line, so it fixes the code itself.
+3. **Guard.** If an edit breaks the plan (say, a UI component importing the database directly), the arrow turns red and Claude gets told right away, with the file and line, so it fixes the code itself. Only *new* breaks block: debt that's already committed never pushes Claude into refactoring files it merely touched.
+
+On the map, open any part to see its files, each with a one-line description (from the file's own doc comment, or summarised from its code). Hover a file to draw exactly what it imports and who imports it. Press **History** to scrub through your git history, one step per merged PR: the map shows the project as it was, the side panel lists what that PR changed and which connections it added or removed, and a drift chart marks every commit that introduced or fixed a rule break, so you can see exactly when the architecture started to slip.
 
 ## Install (Claude Code)
 
@@ -50,6 +52,8 @@ Options: `--root <dir>`, `--port <n>`, `--no-open`.
 
 A file belongs to the part with the longest matching path. Imports inside a part are always fine; imports into another part must be listed in `uses`.
 
+Tests and stories aren't architecture, so they may import anything. To choose yourself, add an `ignore` list of globs (the default is `["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/__mocks__/**", "**/test/**", "**/tests/**", "**/e2e/**", "**/*.stories.*"]`; `[]` checks everything). Files your `.gitignore` excludes, like generated code, are skipped too.
+
 ## What it understands
 
 Imports resolve the way TypeScript and bundlers resolve them, with zero dependencies and any TypeScript version (including the Go-based TypeScript 7):
@@ -58,7 +62,7 @@ Imports resolve the way TypeScript and bundlers resolve them, with zero dependen
 - `paths` and `baseUrl` from the nearest `tsconfig.json` or `jsconfig.json`, following `extends` and Vite-style `references`
 - monorepos: workspace packages (`npm`, `yarn`, `pnpm`) imported by name, like `@acme/shared`
 
-Nothing leaves your machine: the map is a local server bound to `127.0.0.1`.
+Nothing leaves your machine: the map is a local server bound to `127.0.0.1`. It's built for real repos: on a 5,000-file project a save sends the browser a few KB, the hook never waits for the map, and history is analysed in a background thread.
 
 ## Status
 
