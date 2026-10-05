@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>al-dente</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M2 14c2.5-6 5-6 7 0s4.5 6 7 0 4.5-6 6 0' fill='none' stroke='%23eb6834' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 14c2.5-6 5-6 7 0s4.5 6 7 0 4.5-6 6 0"/></svg>
+      <strong>al-dente</strong>
+      <span class="slash">/</span>
+      <span id="project" class="project"></span>
+    </div>
+    <div class="bar-right">
+      <span id="stats" class="stats"></span>
+      <button id="health" class="health" type="button"></button>
+      <span id="conn" class="conn" data-state="connecting"><i></i><span>Connecting</span></span>
+      <button id="theme" class="icon-btn" type="button" aria-label="Switch light or dark theme" title="Switch theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <section id="stage" class="stage" aria-label="Architecture map">
+      <div id="world" class="world">
+        <svg id="wires" class="wires" aria-hidden="true"></svg>
+        <div id="nodes" class="nodes"></div>
+      </div>
+
+      <div class="legend hud" aria-label="Legend">
+        <div class="legend-title">Arrows mean “imports from”</div>
+        <div><svg viewBox="0 0 34 10"><path class="sw sw-allowed" d="M1 5h26"/><path class="sw-head-allowed" d="M26 1l7 4-7 4z"/></svg>Allowed by the plan</div>
+        <div><svg viewBox="0 0 34 10"><path class="sw sw-violation" d="M1 5h26"/><path class="sw-head-violation" d="M26 1l7 4-7 4z"/></svg>Breaks the plan</div>
+        <div><svg viewBox="0 0 34 10"><path class="sw sw-planned" d="M1 5h26"/></svg>Allowed, not used yet</div>
+        <div><span class="sw-affected"></span>May be affected by the last edit</div>
+      </div>
+
+      <div class="zoom hud">
+        <button type="button" data-zoom="in" aria-label="Zoom in" title="Zoom in">+</button>
+        <button type="button" data-zoom="out" aria-label="Zoom out" title="Zoom out">−</button>
+        <button type="button" data-zoom="fit" aria-label="Fit map to screen" title="Fit to screen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        </button>
+      </div>
+
+      <div id="tip" class="tip" role="tooltip" hidden></div>
+      <div id="empty" class="empty" hidden></div>
+    </section>
+
+    <aside class="side">
+      <section id="details" class="details" aria-live="polite"></section>
+      <section class="feed-panel">
+        <header class="panel-head">
+          <h2>Live activity</h2>
+          <span class="live-dot" aria-hidden="true"></span>
+        </header>
+        <ol id="feed" class="feed"></ol>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
