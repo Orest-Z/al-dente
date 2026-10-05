@@ -1,0 +1,1 @@
+{ "name": "@mono/shared", "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } } }

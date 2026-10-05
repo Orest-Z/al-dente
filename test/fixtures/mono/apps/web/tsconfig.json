@@ -1,0 +1,5 @@
+{
+  // Vite-style root: the real settings live in the referenced config
+  "files": [],
+  "references": [{ "path": "./tsconfig.app.json" }],
+}

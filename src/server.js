@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RULES_FILE, buildGraph, createResolver, isSource, listSources, partOf, readRules, toRel, violationsIn } from './core.js';
+import { RULES_FILE, buildGraph, createResolver, isResolverConfig, isSource, listSources, partOf, readRules, toRel, violationsIn } from './core.js';
 
 const UI_DIR = fileURLToPath(new URL('../ui/', import.meta.url));
 const TYPES = /** @type {Record<string, string>} */ ({
@@ -14,7 +14,6 @@ const TYPES = /** @type {Record<string, string>} */ ({
 });
 const GRACE_MS = 1500; // how long a file change waits for the agent hook to claim it before it counts as yours
 const FEED_SIZE = 60;
-const TSCONFIG = /^tsconfig[^/]*\.json$/;
 
 /** @typedef {import('./core.js').Import} Import */
 
@@ -89,7 +88,7 @@ export function startServer({ root, port }) {
       loadRules();
       return publish({ id: nextId++, time: Date.now(), actor, tool, kind: 'rules', file: rel, error: rulesError, parts: rules?.parts.length ?? 0 });
     }
-    if (TSCONFIG.test(rel)) {
+    if (isResolverConfig(rel)) {
       resolver = createResolver(root);
       scanAll();
       return publish(null);
@@ -137,7 +136,7 @@ export function startServer({ root, port }) {
       fs.watch(root, { recursive: true }, (_event, name) => {
         if (!name) return;
         const rel = name.split(path.sep).join('/');
-        if (rel !== RULES_FILE && !TSCONFIG.test(rel) && !isSource(rel)) return;
+        if (rel !== RULES_FILE && !isResolverConfig(rel) && !isSource(rel)) return;
         clearTimeout(pending.get(rel));
         pending.set(rel, setTimeout(() => { pending.delete(rel); apply(rel, 'you'); }, GRACE_MS));
       });

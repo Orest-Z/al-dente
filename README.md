@@ -50,9 +50,15 @@ Options: `--root <dir>`, `--port <n>`, `--no-open`.
 
 A file belongs to the part with the longest matching path. Imports inside a part are always fine; imports into another part must be listed in `uses`.
 
-## Why it's accurate
+## What it understands
 
-Imports are read with TypeScript's own resolver, using your project's TypeScript and `tsconfig.json`. Path aliases like `@/...`, Vite-style project references, index files and `.js`-to-`.ts` imports resolve exactly like your compiler resolves them. Nothing leaves your machine: the map is a local server bound to `127.0.0.1`.
+Imports resolve the way TypeScript and bundlers resolve them, with zero dependencies and any TypeScript version (including the Go-based TypeScript 7):
+
+- relative imports, index files, and ESM `.js` imports that point at `.ts` files
+- `paths` and `baseUrl` from the nearest `tsconfig.json` or `jsconfig.json`, following `extends` and Vite-style `references`
+- monorepos: workspace packages (`npm`, `yarn`, `pnpm`) imported by name, like `@acme/shared`
+
+Nothing leaves your machine: the map is a local server bound to `127.0.0.1`.
 
 ## Status
 

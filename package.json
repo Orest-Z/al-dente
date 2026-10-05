@@ -3,10 +3,19 @@
   "version": "0.1.0",
   "description": "A live architecture map your coding agent has to respect. Keeps vibe-coded apps from turning into spaghetti.",
   "type": "module",
-  "bin": { "al-dente": "bin/al-dente.js" },
-  "files": ["bin", "src", "ui"],
-  "scripts": { "test": "node --test" },
-  "engines": { "node": ">=20" },
-  "dependencies": { "typescript": "^5.6.0" },
+  "bin": {
+    "al-dente": "bin/al-dente.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "ui"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT"
 }
