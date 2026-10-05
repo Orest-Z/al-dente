@@ -1,0 +1,9 @@
+{
+  "parts": {
+    "screens":    { "label": "Screens",    "description": "Pages the user navigates to", "paths": ["src/screens"],    "uses": ["components", "features", "shared"] },
+    "components": { "label": "Components", "description": "Reusable UI pieces",          "paths": ["src/components"], "uses": ["shared"] },
+    "features":   { "label": "Features",   "description": "App logic: cart, checkout",   "paths": ["src/features"],   "uses": ["data", "shared"] },
+    "data":       { "label": "Data",       "description": "Storage and API access",      "paths": ["src/data"],       "uses": ["shared"] },
+    "shared":     { "label": "Shared",     "description": "Types and helpers",           "paths": ["src/shared"],     "uses": [] }
+  }
+}
