@@ -1,0 +1,11 @@
+{
+  "description": "al-dente: check each edit against al-dente.json and update the live map",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/hook.js\"", "timeout": 30 }]
+      }
+    ]
+  }
+}

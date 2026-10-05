@@ -1,0 +1,12 @@
+{
+  "name": "al-dente",
+  "owner": { "name": "Orest Zogju" },
+  "description": "al-dente: a live architecture map your coding agent has to respect.",
+  "plugins": [
+    {
+      "name": "al-dente",
+      "source": "./",
+      "description": "Checks every edit against your architecture plan (al-dente.json) and shows it live on a map."
+    }
+  ]
+}
