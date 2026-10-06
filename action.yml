@@ -1,5 +1,5 @@
 name: al-dente architecture check
-description: Shows what each pull request does to your architecture, and fails only when it adds imports your al-dente.json plan doesn't allow.
+description: "Shows what each pull request does to your architecture, and fails only when it adds imports your al-dente.json plan doesn't allow."
 author: Orest-Z
 branding:
   icon: layers
@@ -7,14 +7,14 @@ branding:
 
 inputs:
   root:
-    description: Folder that holds al-dente.json
-    default: .
+    description: "Folder that holds al-dente.json"
+    default: "."
   base:
-    description: Branch or commit to compare with (default: the pull request's base)
+    description: "Branch or commit to compare with. Default: the pull request's base"
     default: ${{ github.event.pull_request.base.sha }}
   comment:
-    description: Keep one comment on the pull request up to date ("false" writes only the job summary)
-    default: 'true'
+    description: "Keep one comment on the pull request up to date; set to false to only write the job summary"
+    default: "true"
 
 runs:
   using: composite
