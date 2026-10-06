@@ -29,8 +29,15 @@ description: Plan or map a TypeScript/JavaScript app's architecture into al-dent
 ## New project
 
 1. If it's unclear what the app does, ask in one question.
-2. Propose 2–3 architectures in plain language. For each, give: a one-line picture (`Screens → Features → Data`), who it suits, and its trade-off. Recommend one and say why.
-3. Wait for the user to choose. Then write `al-dente.json` and create the folders.
+2. Before designing: if existing tools already do this, name them in a line or two, so the user can decide whether to build at all. Check that this machine has what each option needs (for example `node --version`, `rustc --version`) and say what's missing.
+3. Propose 2–3 architectures in plain language. For each, give:
+   - its parts and which part may use which, as a short picture (`Screens → Features → Data`, with Shared under everything). This becomes the rules al-dente enforces, so show the real arrows, not only the tech stack;
+   - who it suits, and its trade-off;
+   - any code al-dente can't check (anything that isn't TypeScript/JavaScript).
+
+   Recommend one and say why.
+4. Wait for the user to choose. Then write `al-dente.json` and create the folders. If its parts or uses differ from the picture the user chose, say what changed and why.
+5. If the plan rests on something unproven (an API, a runtime, a library), build the smallest test of that first. If it can't be tested yet, say so and ask before building the rest around it.
 
 ## Existing project
 
