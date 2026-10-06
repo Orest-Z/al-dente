@@ -44,8 +44,21 @@ function parseLog(/** @type {string} */ out) {
   });
 }
 
-/** The part of the history that does the work. Runs inside the worker. */
-function createEngine(/** @type {string} */ root) {
+const edgeKey = (/** @type {{ from: string, to: string }} */ e) => `${e.from}>${e.to}`;
+/** Connections added, removed, or changed in count between two graphs. */
+export function edgeDiff(/** @type {{ edges: any[] }} */ before, /** @type {{ edges: any[] }} */ after) {
+  const slim = (/** @type {any} */ e) => ({ from: e.from, to: e.to, kind: e.kind, count: e.count });
+  const was = new Map(before.edges.map((e) => [edgeKey(e), e]));
+  const is = new Map(after.edges.map((e) => [edgeKey(e), e]));
+  return {
+    added: [...is].filter(([k]) => !was.has(k)).map(([, e]) => slim(e)),
+    removed: [...was].filter(([k]) => !is.has(k)).map(([, e]) => slim(e)),
+    changed: [...is].filter(([k, e]) => was.has(k) && was.get(k).count !== e.count).map(([k, e]) => ({ ...slim(e), was: was.get(k).count })),
+  };
+}
+
+/** The part of the history that does the work. Runs inside the worker (map server) or in-process (`al-dente diff`). */
+export function createEngine(/** @type {string} */ root) {
   const git = (/** @type {string[]} */ args, /** @type {string=} */ input) =>
     execFileSync('git', ['-C', root, ...args], { input, maxBuffer: 1 << 30, stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
   const gitText = (/** @type {string[]} */ ...args) => git(args).toString('utf8');
@@ -217,23 +230,12 @@ function createEngine(/** @type {string} */ root) {
     return s;
   }
 
-  const edgeKey = (/** @type {{ from: string, to: string }} */ e) => `${e.from}>${e.to}`;
-  function edgeDiff(/** @type {{ edges: any[] }} */ before, /** @type {{ edges: any[] }} */ after) {
-    const slim = (/** @type {any} */ e) => ({ from: e.from, to: e.to, kind: e.kind, count: e.count });
-    const was = new Map(before.edges.map((e) => [edgeKey(e), e]));
-    const is = new Map(after.edges.map((e) => [edgeKey(e), e]));
-    return {
-      added: [...is].filter(([k]) => !was.has(k)).map(([, e]) => slim(e)),
-      removed: [...was].filter(([k]) => !is.has(k)).map(([, e]) => slim(e)),
-      changed: [...is].filter(([k, e]) => was.has(k) && was.get(k).count !== e.count).map(([k, e]) => ({ ...slim(e), was: was.get(k).count })),
-    };
-  }
-
-  /** Files changed between two commits: status (A/M/D/R…), lines added/removed, old path for renames. */
-  function changedFiles(/** @type {string} */ from, /** @type {string} */ to) {
+  /** Files changed between two commits (no `to`: the working tree): status (A/M/D/R…), lines added/removed, old path for renames. */
+  function changedFiles(/** @type {string} */ from, /** @type {string=} */ to) {
+    const revs = to ? [from, to] : [from];
     /** @type {Map<string, { path: string, old: string | null, status: string, add: number | null, del: number | null }>} */
     const out = new Map();
-    const st = gitText('diff', '--name-status', '-M', '-z', '--relative', from, to).split('\0');
+    const st = gitText('diff', '--name-status', '-M', '-z', '--relative', ...revs).split('\0');
     for (let i = 0; i + 1 < st.length;) {
       const status = st[i][0];
       const renamed = status === 'R' || status === 'C';
@@ -241,7 +243,7 @@ function createEngine(/** @type {string} */ root) {
       out.set(file, { path: file, old, status, add: null, del: null });
       i += renamed ? 3 : 2;
     }
-    const ns = gitText('diff', '--numstat', '-M', '-z', '--relative', from, to).split('\0');
+    const ns = gitText('diff', '--numstat', '-M', '-z', '--relative', ...revs).split('\0');
     for (let i = 0; i < ns.length;) {
       const [a, d, file] = ns[i].split('\t');
       if (d === undefined) { i++; continue; }
@@ -285,6 +287,11 @@ function createEngine(/** @type {string} */ root) {
   }
 
   return {
+    web,
+    changedFiles,
+    /** Every checked source file at `rev`, with its resolved imports. */
+    imports(/** @type {Rules} */ rules, /** @type {string} */ rev) { useRules(rules); return load(rules, rev).imports; },
+
     /** Newest first. `all` includes commits from merged branches; otherwise one step per merge/PR on this branch. */
     log,
 

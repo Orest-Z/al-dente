@@ -1,0 +1,46 @@
+name: al-dente architecture check
+description: Shows what each pull request does to your architecture, and fails only when it adds imports your al-dente.json plan doesn't allow.
+author: Orest-Z
+branding:
+  icon: layers
+  color: orange
+
+inputs:
+  root:
+    description: Folder that holds al-dente.json
+    default: .
+  base:
+    description: Branch or commit to compare with (default: the pull request's base)
+    default: ${{ github.event.pull_request.base.sha }}
+  comment:
+    description: Keep one comment on the pull request up to date ("false" writes only the job summary)
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        ROOT: ${{ inputs.root }}
+        BASE: ${{ inputs.base }}
+        COMMENT: ${{ inputs.comment }}
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        report="$RUNNER_TEMP/al-dente.md"
+        set +e
+        node "$GITHUB_ACTION_PATH/bin/al-dente.js" diff ${BASE:+"$BASE"} --root "$ROOT" > "$report"
+        code=$?
+        set -e
+        [ -s "$report" ] || exit "$code" # al-dente itself failed; the reason is in the log above
+        cat "$report" >> "$GITHUB_STEP_SUMMARY"
+
+        if [ "$COMMENT" = true ] && [ -n "$PR" ]; then
+          { echo '<!-- al-dente -->'; cat "$report"; } > "$report.body"
+          api="repos/$GITHUB_REPOSITORY/issues"
+          id="$(gh api "$api/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- al-dente -->")) | .id' 2>/dev/null | grep -E '^[0-9]+$' | head -n1 || true)" # on an API error gh prints the error JSON instead
+          if [ -n "$id" ]; then gh api -X PATCH "$api/comments/$id" -F body=@"$report.body" > /dev/null
+          else gh api "$api/$PR/comments" -F body=@"$report.body" > /dev/null
+          fi || echo "::warning::al-dente couldn't comment on the pull request (pull requests from forks get a read-only token). The report is in the job summary."
+        fi
+        exit "$code"

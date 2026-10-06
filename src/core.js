@@ -78,12 +78,18 @@ const globToRegExp = (/** @type {string} */ glob) => new RegExp(`^${normPath(glo
 /** Files the plan leaves out of the architecture (tests by default): not drawn, not checked. */
 export const isIgnored = (/** @type {Rules} */ rules, /** @type {string} */ rel) => rules.ignoreRe.some((re) => re.test(rel));
 
-/** Load al-dente.json. Returns null when the project has none; throws a readable error when it's invalid. */
-export function readRules(/** @type {string} */ root) {
-  const file = path.join(root, RULES_FILE);
-  if (!fs.existsSync(file)) return null;
+/**
+ * Load al-dente.json (or parse `text`, e.g. the plan as committed). Returns null when the project has none;
+ * throws a readable error when it's invalid.
+ */
+export function readRules(/** @type {string} */ root, /** @type {string | null=} */ text) {
+  if (text === undefined) {
+    const file = path.join(root, RULES_FILE);
+    text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null;
+  }
+  if (text === null) return null;
   let raw;
-  try { raw = JSON.parse(fs.readFileSync(file, 'utf8')); }
+  try { raw = JSON.parse(text); }
   catch (e) { throw new Error(`${RULES_FILE} is not valid JSON (${/** @type {Error} */ (e).message})`); }
   const parts = raw?.parts;
   if (!parts || typeof parts !== 'object' || Array.isArray(parts)) throw new Error(`${RULES_FILE} needs a "parts" object`);
@@ -485,6 +491,14 @@ export function describeFile(/** @type {string} */ rel, /** @type {string} */ sr
 }
 
 // ---------------------------------------------------------------- graph
+
+/** Every checked source file on disk with its resolved imports (one full scan; the live server keeps its own cache). */
+export function diskImports(/** @type {string} */ root, /** @type {Rules} */ rules) {
+  const resolver = createResolver(root);
+  return new Map(listSources(root).filter((rel) => !isIgnored(rules, rel)).flatMap((rel) => {
+    try { return [[rel, resolver.importsOf(rel)]]; } catch { return []; } // deleted since the last commit
+  }));
+}
 
 /** Imports in `rel` that cross into a part its own part is not allowed to use. */
 export function violationsIn(/** @type {Rules} */ rules, /** @type {string} */ rel, /** @type {Import[]} */ imports) {

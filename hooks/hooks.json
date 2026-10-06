@@ -1,6 +1,12 @@
 {
-  "description": "al-dente: check each edit against al-dente.json and update the live map",
+  "description": "al-dente: give Claude the plan at session start, check each edit against al-dente.json and update the live map",
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/src/session.js\"", "timeout": 30 }]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|MultiEdit",

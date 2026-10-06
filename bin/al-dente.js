@@ -7,12 +7,18 @@ const HELP = `al-dente: a live architecture map your coding agent has to respect
 
 Usage
   al-dente [map]     open the live map for this project (default)
-  al-dente check     check every file once; exits 1 on rule breaks (use it in CI)
+  al-dente check     check every file once; exits 1 on rule breaks
+  al-dente diff [base]
+                     what this branch does to the architecture, compared with where it forked
+                     from base (default: main). Markdown for a PR comment; exits 1 only on
+                     rule breaks it adds, so older debt never fails a PR
 
 Options
   --root <dir>       project folder (default: current folder)
   --port <n>         map port (default: 4747, or AL_DENTE_PORT)
-  --no-open          don't open the browser`;
+  --no-open          don't open the browser
+  --head <rev>       diff: compare a commit instead of the working tree
+  --json             diff: print JSON instead of Markdown`;
 
 let args;
 try {
@@ -22,6 +28,8 @@ try {
       root: { type: 'string', default: '.' },
       port: { type: 'string', default: process.env.AL_DENTE_PORT ?? '4747' },
       'no-open': { type: 'boolean', default: false },
+      head: { type: 'string' },
+      json: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
@@ -33,13 +41,14 @@ const { values, positionals } = args;
 const command = positionals[0] ?? 'map';
 const root = path.resolve(values.root);
 
-if (values.help || !['map', 'check'].includes(command)) {
+if (values.help || !['map', 'check', 'diff'].includes(command)) {
   console.log(HELP);
   process.exit(values.help ? 0 : 1);
 }
 
 try {
   if (command === 'check') await check();
+  else if (command === 'diff') await diff();
   else await map();
 } catch (e) {
   console.error(`al-dente: ${e.message}`);
@@ -47,22 +56,27 @@ try {
 }
 
 async function check() {
-  const { RULES_FILE, createResolver, isIgnored, listSources, readRules, violationsIn } = await import('../src/core.js');
+  const { RULES_FILE, diskImports, readRules, violationsIn } = await import('../src/core.js');
   const rules = readRules(root);
   if (!rules) throw new Error(`no ${RULES_FILE} in ${root}. Ask your agent to design the architecture first.`);
-  const resolver = createResolver(root);
   const label = (id) => rules.byId.get(id).label;
-  const files = listSources(root).filter((rel) => !isIgnored(rules, rel));
-  const importsOf = (rel) => { try { return resolver.importsOf(rel); } catch { return []; } }; // deleted since the last commit
-  const broken = files.flatMap((rel) => violationsIn(rules, rel, importsOf(rel)).map((v) => ({ rel, ...v })));
+  const files = diskImports(root, rules);
+  const broken = [...files].flatMap(([rel, imports]) => violationsIn(rules, rel, imports).map((v) => ({ rel, ...v })));
 
   if (!broken.length) {
-    console.log(`✓ Matches the plan: ${files.length} files across ${rules.parts.length} parts follow ${RULES_FILE}.`);
+    console.log(`✓ Matches the plan: ${files.size} files across ${rules.parts.length} parts follow ${RULES_FILE}.`);
     return;
   }
   console.log(`✗ ${broken.length} import${broken.length === 1 ? '' : 's'} break the plan in ${RULES_FILE}:\n`);
   for (const v of broken) console.log(`  ${v.rel}:${v.line}  ${label(v.from)} → ${label(v.to)}  ("${v.spec}")`);
   process.exitCode = 1;
+}
+
+async function diff() {
+  const { diffArchitecture, toMarkdown } = await import('../src/diff.js');
+  const d = diffArchitecture(root, { base: positionals[1], head: values.head });
+  console.log(values.json ? JSON.stringify(d, null, 2) : toMarkdown(d));
+  if (d.broke.length) process.exitCode = 1;
 }
 
 async function map() {

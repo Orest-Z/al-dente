@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { buildGraph, createResolver, describeFile, isIgnored, listSources, readRules, scanImports, violationsIn } from '../src/core.js';
+import { diffArchitecture, toMarkdown } from '../src/diff.js';
 import { createHistory } from '../src/history.js';
 
 const root = fileURLToPath(new URL('../examples/shop', import.meta.url));
@@ -157,6 +158,60 @@ test('hook: only breaks this edit introduced block Claude; breaks already commit
     assert.doesNotMatch(r.err, /line 1/, 'the old break is not reported as new');
     write('src/ui/fresh.ts', "import { db } from '../data/db';\n");
     assert.equal(hook('src/ui/fresh.ts').code, 2, 'a new file has no committed version: every break counts');
+  } finally {
+    done();
+  }
+});
+
+test('diff: a branch is judged only on the breaks it adds, and renders a PR comment with a Mermaid map', () => {
+  const { repo, git, write, done } = tempRepo();
+  const cli = (...args) => {
+    try { return { code: 0, out: execFileSync('node', [fileURLToPath(new URL('../bin/al-dente.js', import.meta.url)), 'diff', '--root', repo, ...args], { stdio: 'pipe' }).toString() }; }
+    catch (e) { return { code: e.status, out: e.stdout.toString() }; }
+  };
+  try {
+    write('src/ui/page.ts', "import { db } from '../data/db';\n"); // debt already on main
+    git('add', '.');
+    git('commit', '-qm', 'Old debt');
+    git('branch', '-M', 'main');
+    git('checkout', '-qb', 'feature');
+    git('mv', 'src/ui/page.ts', 'src/ui/home.ts'); // moving a file doesn't make its old break new
+    write('src/ui/fresh.ts', "import { fmt } from '../shared/fmt';\nimport { cache } from '../data/cache';\n");
+    git('add', '.');
+    git('commit', '-qm', 'Add fresh');
+
+    const d = diffArchitecture(repo, { head: 'HEAD' }); // base: found by itself (main)
+    assert.deepEqual(d.broke.map((v) => [v.file, v.line, v.to]), [['src/ui/fresh.ts', 2, 'data']]);
+    assert.deepEqual(d.fixed, []);
+    assert.equal(d.graph.violations, 2);
+    const md = toMarkdown(d);
+    assert.match(md, /✗ \*\*Adds 1 rule break\*\*/);
+    assert.match(md, /```mermaid\nflowchart TD/);
+    assert.match(md, /`src\/ui\/fresh\.ts:2` \| `\.\.\/data\/cache` \(ui → data\)/);
+    assert.match(md, /1 older rule break left as it was/);
+    assert.equal(cli('main', '--head', 'HEAD').code, 1);
+
+    // The working tree (the default head) undoes the new break: the PR would pass.
+    write('src/ui/fresh.ts', "import { fmt } from '../shared/fmt';\n");
+    const r = cli('main');
+    assert.equal(r.code, 0);
+    assert.match(r.out, /✓ \*\*Follows the plan\*\*/);
+  } finally {
+    done();
+  }
+});
+
+test('session start: Claude gets the plan and the older breaks up front; projects without a plan get nothing', () => {
+  const { repo, write, done } = tempRepo();
+  const session = (dir) => execFileSync('node', [fileURLToPath(new URL('../src/session.js', import.meta.url))], { input: '{"source":"startup"}', env: { ...process.env, CLAUDE_PROJECT_DIR: dir }, stdio: 'pipe' }).toString();
+  try {
+    write('src/ui/page.ts', "import { db } from '../data/db';\n");
+    const out = session(repo);
+    assert.match(out, /^- ui \(src\/ui\) may use: shared$/m);
+    assert.match(out, /^- data \(src\/data\) may use: nothing outside itself$/m);
+    assert.match(out, /^- src\/ui\/page\.ts:1 imports "\.\.\/data\/db" \(ui → data\)$/m);
+    fs.rmSync(path.join(repo, 'al-dente.json'));
+    assert.equal(session(repo), '');
   } finally {
     done();
   }
