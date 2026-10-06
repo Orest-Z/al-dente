@@ -80,7 +80,10 @@ code { font-family: var(--mono); }
 }
 .brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .brand strong { font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; }
-.logo { width: 22px; height: 22px; fill: none; stroke: var(--series-2); stroke-width: 3; stroke-linecap: round; }
+.logo { width: 24px; height: 24px; flex-shrink: 0; }
+/* The lasagna mark: tomato top sheet, ruffled sheets in the ink colour so they show in both themes. */
+.logo-sheet { fill: #e8552b; stroke: #e8552b; stroke-width: 3.2; stroke-linejoin: round; }
+.logo-layer { fill: none; stroke: var(--ink); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
 .slash { color: var(--axis); }
 .project { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bar-right { display: flex; align-items: center; gap: 12px; }
