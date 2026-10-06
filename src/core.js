@@ -1,17 +1,21 @@
 // @ts-check
 // Core of al-dente: read the architecture rules, resolve each file's imports
-// (no dependencies, any TypeScript version), and turn them into a part-level graph.
+// (no dependencies, any TypeScript version; Python in python.js), and turn them into a part-level graph.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { createPythonResolver, describePython, pythonSpecs } from './python.js';
 
 export const RULES_FILE = 'al-dente.json';
 export const UNMAPPED = '~unmapped';
-const SOURCE = /\.[cm]?[jt]sx?$/;
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage']);
-/** Not architecture: tests and stories may import anything. A plan can override this with its own "ignore" list. */
-export const DEFAULT_IGNORE = ['**/*.test.*', '**/*.spec.*', '**/__tests__/**', '**/__mocks__/**', '**/test/**', '**/tests/**', '**/e2e/**', '**/*.stories.*'];
+const SOURCE = /\.(?:[cm]?[jt]sx?|py)$/;
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage', '__pycache__', 'venv', 'site-packages']);
+/** Not architecture: tests, stories and migrations may import anything. A plan can override this with its own "ignore" list. */
+export const DEFAULT_IGNORE = [
+  '**/*.test.*', '**/*.spec.*', '**/__tests__/**', '**/__mocks__/**', '**/test/**', '**/tests/**', '**/e2e/**', '**/*.stories.*',
+  '**/test_*.py', '**/*_test.py', '**/conftest.py', '**/migrations/*.py', '**/alembic/versions/*.py', // migrations are generated snapshots
+];
 
 /** Project-relative path with forward slashes, e.g. "src/ui/Button.tsx". */
 export const toRel = (/** @type {string} */ root, /** @type {string} */ file) =>
@@ -169,10 +173,11 @@ export function scanImports(/** @type {string} */ src) {
   return found.sort((a, b) => a.pos - b.pos);
 }
 
-/** @typedef {{ spec: string, line: number }} Spec */
+/** @typedef {{ spec: string, line: number, alt?: string }} Spec alt: where Python's `from m import x` lands when x isn't a submodule */
 
 /** Specifiers with their line numbers: the part of a file's analysis that only depends on its text, so it can be cached. */
-export function importSpecs(/** @type {string} */ src) {
+export function importSpecs(/** @type {string} */ src, /** @type {string} */ rel = '') {
+  if (rel.endsWith('.py')) return pythonSpecs(src);
   /** @type {Spec[]} */
   const out = [];
   let line = 1, at = 0;
@@ -191,13 +196,17 @@ const parseJsonc = (/** @type {string} */ text) => JSON.parse(stripComments(text
 /**
  * Where the resolver reads files from: the disk by default; the history view passes one that
  * reads a past commit instead (see history.js).
- * @typedef {{ isFile(abs: string): boolean, read(abs: string): string, dirs(abs: string): string[] }} SourceIO
+ * @typedef {{ isFile(abs: string): boolean, read(abs: string): string, dirs(abs: string): string[], entries(abs: string): { dirs: string[], files: string[] } }} SourceIO
  */
 /** @type {SourceIO} */
 export const diskIO = {
   isFile: (p) => fs.statSync(p, { throwIfNoEntry: false })?.isFile() ?? false,
   read: (p) => fs.readFileSync(p, 'utf8'),
   dirs: (p) => fs.readdirSync(p, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name),
+  entries: (p) => {
+    const all = fs.readdirSync(p, { withFileTypes: true });
+    return { dirs: all.filter((e) => e.isDirectory()).map((e) => e.name), files: all.filter((e) => e.isFile()).map((e) => e.name) };
+  },
 };
 
 /**
@@ -343,6 +352,8 @@ export function createResolver(/** @type {string} */ root, /** @type {SourceIO} 
     return path.join(ws.dir, 'package.json'); // still lands in the right part
   };
 
+  const python = createPythonResolver(root, io);
+
   const resolve = (/** @type {string} */ spec, /** @type {string} */ fromDir) => {
     if (spec.startsWith('.')) return resolveFile(path.resolve(fromDir, spec));
     if (path.isAbsolute(spec) || /^[a-z]+:/i.test(spec)) return null; // absolute, node:, http:
@@ -367,16 +378,28 @@ export function createResolver(/** @type {string} */ root, /** @type {SourceIO} 
 
   return {
     /** Forget cached lookups (call after files are created or deleted, or configs change). */
-    reset: () => { isFileCache.clear(); configCache.clear(); },
+    reset: () => { isFileCache.clear(); configCache.clear(); python.reset(); },
     /** Imports of one file that point at other files in this project. Pass `text` to check unsaved content. */
     importsOf(/** @type {string} */ rel, /** @type {string=} */ text) {
-      return this.resolveAll(rel, importSpecs(text ?? io.read(path.join(root, rel))));
+      return this.resolveAll(rel, importSpecs(text ?? io.read(path.join(root, rel)), rel));
     },
     /** Resolve specifiers already scanned from `rel` (see importSpecs); only project files are kept. */
     resolveAll(/** @type {string} */ rel, /** @type {Spec[]} */ specs) {
       const dir = path.dirname(path.join(root, rel));
       /** @type {Import[]} */
       const out = [];
+      if (rel.endsWith('.py')) {
+        const seen = new Set(); // `from m import a, b` where both land in m is one import
+        for (const s of specs) {
+          const hit = python.resolve(s, dir);
+          const target = hit ? toRel(root, hit.file) : '';
+          const key = `${target}|${hit?.spec}|${s.line}`;
+          if (!hit || target === rel || target.startsWith('..') || seen.has(key)) continue;
+          seen.add(key);
+          out.push({ spec: hit.spec, target, line: s.line });
+        }
+        return out;
+      }
       for (const { spec, line } of specs) {
         const file = resolve(spec, dir);
         if (!file) continue;
@@ -400,7 +423,7 @@ const EXPORT_DECL = /(?:^|[^\w$.])export\s+(?:declare\s+)?(default\s+)?(?:abstra
 const EXPORT_LIST = /(?:^|[^\w$.])export\s+(?:type\s+)?\{([^}]*)\}/g;
 
 /** "/** Does X. More detail" -> "Does X." (first paragraph, first sentence, tags and markup dropped). */
-function firstSentence(/** @type {string} */ raw) {
+export function firstSentence(/** @type {string} */ raw) {
   const lines = raw.replace(/^\/\*+!?|\*+\/$/g, '').split('\n').map((l) => l.replace(/^\s*(?:\/\/+|\*(?!\/))?\s?/, ''));
   const para = lines.join('\n').trim().split(/\n\s*\n|\n\s*@/)[0].replace(/:\s*\n[\s\S]*$/, '.');
   const text = para.replace(/\s+/g, ' ').trim();
@@ -414,6 +437,7 @@ function firstSentence(/** @type {string} */ raw) {
  * ponytail: heuristic; agent-written descriptions would read better, add when users ask for them.
  */
 export function describeFile(/** @type {string} */ rel, /** @type {string} */ src) {
+  if (rel.endsWith('.py')) return describePython(rel, src);
   /** @type {{ start: number, end: number }[]} */
   const comments = [];
   const code = stripComments(src, comments);

@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Plan or map a TypeScript/JavaScript app's architecture into al-dente.json (the parts of the app and which part may use which), which al-dente then enforces on every edit and shows on a live map. Use when starting a new app, when the user asks to design, plan or decide the architecture, to "set up al-dente", or to map an existing codebase into parts.
+description: Plan or map a TypeScript, JavaScript or Python app's architecture into al-dente.json (the parts of the app and which part may use which), which al-dente then enforces on every edit and shows on a live map. Use when starting a new app, when the user asks to design, plan or decide the architecture, to "set up al-dente", or to map an existing codebase into parts.
 ---
 
 # Architecture plan for al-dente
@@ -22,9 +22,10 @@ description: Plan or map a TypeScript/JavaScript app's architecture into al-dent
 ```
 
 - `paths`: folders (or files) relative to the project root. A file belongs to the part with the longest matching path, so `src/features/cart` can be its own part inside `src/features`.
+- Python: paths are package folders, like `app/api` or `src/shop/services`. A part may list several folders, such as a group of Django apps (`["shop/users", "shop/orders"]`).
 - `uses`: the parts this part may import from. Imports inside a part are always allowed.
 - Part order sets the map colors. Put the parts people look at most first.
-- Tests and stories are left out of the architecture by default. Only add an `"ignore": [globs]` list if the project keeps tests or other non-production code somewhere the defaults miss (they cover `*.test.*`, `*.spec.*`, `__tests__/`, `__mocks__/`, `test/`, `tests/`, `e2e/`, `*.stories.*`).
+- Tests, stories and migrations are left out of the architecture by default. Only add an `"ignore": [globs]` list if the project keeps tests or other non-production code somewhere the defaults miss (they cover `*.test.*`, `*.spec.*`, `__tests__/`, `__mocks__/`, `test/`, `tests/`, `e2e/`, `*.stories.*`, `test_*.py`, `*_test.py`, `conftest.py`, `migrations/*.py` and `alembic/versions/*.py`).
 
 ## New project
 
@@ -33,7 +34,7 @@ description: Plan or map a TypeScript/JavaScript app's architecture into al-dent
 3. Propose 2–3 architectures in plain language. For each, give:
    - its parts and which part may use which, as a short picture (`Screens → Features → Data`, with Shared under everything). This becomes the rules al-dente enforces, so show the real arrows, not only the tech stack;
    - who it suits, and its trade-off;
-   - any code al-dente can't check (anything that isn't TypeScript/JavaScript).
+   - any code al-dente can't check (anything that isn't TypeScript, JavaScript or Python).
 
    Recommend one and say why.
 4. Wait for the user to choose. Then write `al-dente.json` and create the folders. If its parts or uses differ from the picture the user chose, say what changed and why.

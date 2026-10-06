@@ -97,8 +97,11 @@ const countOf = (id) => partById(id)?.fileCount ?? filesOf(id).length;
 
 /** "apps/web/src/ui/Button.tsx" in part "apps/web/src" -> "ui/Button.tsx". */
 function relName(id, rel) {
-  const base = (partById(id)?.paths ?? []).filter((p) => rel.startsWith(p + '/')).sort((a, b) => b.length - a.length)[0];
-  return base ? rel.slice(base.length + 1) : rel;
+  const paths = partById(id)?.paths ?? [];
+  const base = paths.filter((p) => rel.startsWith(p + '/')).sort((a, b) => b.length - a.length)[0];
+  if (!base) return rel;
+  // A part made of several folders keeps the folder's name, so users/models.py and files/models.py stay apart.
+  return paths.length > 1 ? rel.slice(base.lastIndexOf('/') + 1) : rel.slice(base.length + 1);
 }
 
 // ------------------------------------------------------------------ layout

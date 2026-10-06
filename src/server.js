@@ -96,7 +96,7 @@ export function startServer({ root, port }) {
       if (!sig) throw new Error('gone');
       const text = fs.readFileSync(abs, 'utf8');
       /** @type {Analysed} */
-      const entry = { sig, specs: importSpecs(text), about: describeFile(rel, text), imports: [] };
+      const entry = { sig, specs: importSpecs(text, rel), about: describeFile(rel, text), imports: [] };
       files.set(rel, entry);
       return entry;
     } catch { files.delete(rel); return null; } // deleted or unreadable mid-write

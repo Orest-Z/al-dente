@@ -155,7 +155,7 @@ export function createEngine(/** @type {string} */ root) {
     if (scans.size + missing.length > MAX_SCANS) scans.clear(); // ponytail: crude cap; an LRU if very long histories thrash
     for (const rel of missing) {
       const text = texts.get(/** @type {string} */ (tree.get(rel))) ?? '';
-      scans.set(key(rel), { specs: importSpecs(text), about: describeFile(rel, text) });
+      scans.set(key(rel), { specs: importSpecs(text, rel), about: describeFile(rel, text) });
     }
 
     // Resolution only depends on which files exist and on the configs, so reuse it while those stay the same.
@@ -163,7 +163,7 @@ export function createEngine(/** @type {string} */ root) {
     if (sig !== ctx.sig) ctx = { sig, resolved: new Map() };
 
     /** @type {Map<string, Set<string>>} */
-    const dirs = new Map();
+    const dirs = new Map(), files = new Map();
     for (const rel of tree.keys()) {
       const segs = rel.split('/');
       for (let d = 1; d < segs.length; d++) {
@@ -171,6 +171,9 @@ export function createEngine(/** @type {string} */ root) {
         if (!dirs.has(parent)) dirs.set(parent, new Set());
         /** @type {Set<string>} */ (dirs.get(parent)).add(segs[d - 1]);
       }
+      const dir = segs.slice(0, -1).join('/');
+      if (!files.has(dir)) files.set(dir, new Set());
+      /** @type {Set<string>} */ (files.get(dir)).add(/** @type {string} */ (segs.at(-1)));
     }
     // Files inside the project come from the commit; anything outside (node_modules, a parent tsconfig) from disk.
     const inside = (/** @type {string} */ abs) => {
@@ -188,6 +191,10 @@ export function createEngine(/** @type {string} */ root) {
         return text;
       },
       dirs: (abs) => { const rel = inside(abs); return rel === null ? diskIO.dirs(abs) : [...(dirs.get(rel) ?? [])]; },
+      entries: (abs) => {
+        const rel = inside(abs);
+        return rel === null ? diskIO.entries(abs) : { dirs: [...(dirs.get(rel) ?? [])], files: [...(files.get(rel) ?? [])] };
+      },
     };
 
     /** @type {ReturnType<typeof createResolver> | null} */

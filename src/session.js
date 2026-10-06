@@ -21,7 +21,7 @@ try {
 
   const label = (id) => rules.byId.get(id).label;
   const broken = [...diskImports(root, rules)].flatMap(([rel, imports]) => violationsIn(rules, rel, imports).map((v) => ({ rel, ...v })));
-  const ignore = JSON.stringify(rules.ignore) === JSON.stringify(DEFAULT_IGNORE) ? 'Tests and stories' : rules.ignore.join(', ');
+  const ignore = JSON.stringify(rules.ignore) === JSON.stringify(DEFAULT_IGNORE) ? 'Tests, stories and migrations' : rules.ignore.join(', ');
   console.log([
     `This project's architecture is agreed in ${RULES_FILE} and enforced by al-dente: an edit that imports from a part its own part may not use is blocked.`,
     'Parts (folders) and what each may import from:',

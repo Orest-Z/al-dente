@@ -7,7 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { buildGraph, createResolver, describeFile, isIgnored, listSources, readRules, scanImports, violationsIn } from '../src/core.js';
 import { diffArchitecture, toMarkdown } from '../src/diff.js';
-import { createHistory } from '../src/history.js';
+import { createEngine, createHistory } from '../src/history.js';
 
 const root = fileURLToPath(new URL('../examples/shop', import.meta.url));
 const rules = readRules(root);
@@ -57,6 +57,45 @@ test('monorepo: workspace packages, tsconfig references, JSONC configs and .js-t
   ]);
   assert.deepEqual(targets('apps/web/src/ui/button.ts'), [['@mono/shared', 'packages/shared/src/index.ts']]);
   assert.deepEqual(targets('packages/shared/src/index.ts'), [['./math.js', 'packages/shared/src/math.ts']]);
+});
+
+test('python: src layout, relative and parenthesised imports, scripts, and the same answer from git history', () => {
+  const py = fileURLToPath(new URL('./fixtures/py', import.meta.url));
+  const r = createResolver(py), plan = readRules(py);
+  const imports = (file) => r.importsOf(file).map((i) => [i.line, i.spec, i.target]);
+  // The docstring and the comment that look like imports don't count; fastapi, os and typing aren't project files.
+  assert.deepEqual(imports('src/shop/api/routes.py'), [
+    [11, 'shop.services.orders', 'src/shop/services/orders.py'], // a submodule
+    [12, '..shared.money', 'src/shop/shared/money.py'], // names from a module, over several lines: one import
+    [16, 'shop.data.models', 'src/shop/data/models.py'],
+    [19, 'shop.data.repo', 'src/shop/data/repo.py'], // inside `if TYPE_CHECKING:`
+  ]);
+  assert.deepEqual(imports('src/shop/services/orders.py'), [
+    [2, 'shop.data.repo', 'src/shop/data/repo.py'],
+    [3, '.pricing', 'src/shop/services/pricing.py'],
+    [5, 'shop.data.plugins', 'src/shop/data/plugins/__init__.py'], // importlib.import_module("…")
+  ]);
+  assert.deepEqual(imports('scripts/seed.py'), [[1, 'helpers', 'scripts/helpers.py'], [2, 'shop.services.orders', 'src/shop/services/orders.py']]);
+  assert.deepEqual(violationsIn(plan, 'src/shop/api/routes.py', r.importsOf('src/shop/api/routes.py')).map((v) => [v.line, v.to]), [[16, 'data'], [19, 'data']]);
+  assert.ok(isIgnored(plan, 'tests/test_orders.py') && isIgnored(plan, 'src/shop/conftest.py'));
+
+  const d = (rel) => describeFile(rel, fs.readFileSync(path.join(py, rel), 'utf8')).text;
+  assert.equal(d('src/shop/api/routes.py'), 'HTTP routes for orders.');
+  assert.equal(d('src/shop/services/orders.py'), 'Places and cancels orders.'); // the docstring of its one class
+  assert.equal(d('src/shop/services/__init__.py'), 'Package: re-exports place_order');
+  assert.equal(d('src/shop/services/pricing.py'), 'Functions: price');
+  assert.equal(d('scripts/seed.py'), 'Script entry point; defines main');
+
+  // History reads the same files from a commit (git objects, not the disk) and must agree.
+  const { repo, git, done } = tempRepo();
+  try {
+    fs.cpSync(py, repo, { recursive: true });
+    git('add', '.');
+    git('commit', '-qm', 'Python shop');
+    const atHead = createEngine(repo).imports(readRules(repo), 'HEAD');
+    assert.deepEqual(atHead.get('src/shop/api/routes.py').map((i) => i.target), imports('src/shop/api/routes.py').map((i) => i[2]));
+    assert.deepEqual(atHead.get('scripts/seed.py').map((i) => i.target), ['scripts/helpers.py', 'src/shop/services/orders.py']);
+  } finally { done(); }
 });
 
 test('file descriptions: top doc comment first, otherwise a summary from the code', () => {

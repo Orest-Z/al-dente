@@ -80,7 +80,7 @@ The comment shows the parts as a diagram (new connections thick, breaks red), th
 
 A file belongs to the part with the longest matching path. Imports inside a part are always fine; imports into another part must be listed in `uses`.
 
-Tests and stories aren't architecture, so they may import anything. To choose yourself, add an `ignore` list of globs (the default is `["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/__mocks__/**", "**/test/**", "**/tests/**", "**/e2e/**", "**/*.stories.*"]`; `[]` checks everything). Files your `.gitignore` excludes, like generated code, are skipped too.
+Tests, stories and migrations aren't architecture, so they may import anything. To choose yourself, add an `ignore` list of globs (the default is `["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/__mocks__/**", "**/test/**", "**/tests/**", "**/e2e/**", "**/*.stories.*", "**/test_*.py", "**/*_test.py", "**/conftest.py", "**/migrations/*.py", "**/alembic/versions/*.py"]`; `[]` checks everything). Files your `.gitignore` excludes, like generated code, are skipped too.
 
 ## What it understands
 
@@ -90,11 +90,17 @@ Imports resolve the way TypeScript and bundlers resolve them, with zero dependen
 - `paths` and `baseUrl` from the nearest `tsconfig.json` or `jsconfig.json`, following `extends` and Vite-style `references`
 - monorepos: workspace packages (`npm`, `yarn`, `pnpm`) imported by name, like `@acme/shared`
 
+Python imports resolve the way Python's import system would, from the file layout alone (no Python needed):
+
+- `import a.b`, `from .x import y` (submodule or name), parenthesised imports over several lines, imports inside functions or `if TYPE_CHECKING:`, and `importlib.import_module("a.b")` with a literal name
+- packages and modules under the project root, `src/` layouts (with or without `__init__.py`), monorepos with several packages, and plain script folders
+- the standard library and installed packages are skipped; tested on Django, Flask, LangChain, FastAPI's full-stack template and nanoGPT (about 40,000 imports, no wrong matches)
+
 Nothing leaves your machine: the map is a local server bound to `127.0.0.1`. It's built for real repos: on a 5,000-file project a save sends the browser a few KB, the hook never waits for the map, and history is analysed in a background thread.
 
 ## Status
 
-Early. Works with TypeScript and JavaScript projects in Claude Code. Planned next: Cursor, Codex and Gemini CLI hooks, and more languages.
+Early. Works with TypeScript, JavaScript and Python projects in Claude Code. Planned next: Java and C#, then Cursor, Codex and Gemini CLI hooks.
 
 Try it on the bundled example:
 

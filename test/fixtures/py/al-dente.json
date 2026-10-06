@@ -1,0 +1,9 @@
+{
+  "parts": {
+    "api":      { "label": "API",      "paths": ["src/shop/api"],      "uses": ["services", "shared"] },
+    "services": { "label": "Services", "paths": ["src/shop/services"], "uses": ["data", "shared"] },
+    "data":     { "label": "Data",     "paths": ["src/shop/data"],     "uses": ["shared"] },
+    "shared":   { "label": "Shared",   "paths": ["src/shop/shared"],   "uses": [] },
+    "scripts":  { "label": "Scripts",  "paths": ["scripts"],           "uses": ["services"] }
+  }
+}
