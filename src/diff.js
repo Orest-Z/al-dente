@@ -7,7 +7,7 @@ import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { RULES_FILE, UNMAPPED, buildGraph, diskImports, importDelta, isIgnored, isSource, partOf, readRules } from './core.js';
-import { createEngine, edgeDiff } from './history.js';
+import { MAIN_REFS, createEngine, edgeDiff } from './history.js';
 
 const MAX_ROWS = 50; // per table: a PR comment is capped at 65,536 characters
 
@@ -37,7 +37,7 @@ export function diffArchitecture(root, { base, head } = {}) {
     try { return git('merge-base', sha, headSha); } catch { throw new Error(`${base ?? sha} and ${head ?? 'HEAD'} share no history`); }
   };
   let fork = base ? forkFrom(commit(base)) : null;
-  for (const ref of base ? [] : ['origin/HEAD', 'origin/main', 'origin/master', 'main', 'master']) {
+  for (const ref of base ? [] : MAIN_REFS) {
     try { fork = forkFrom(commit(ref)); break; } catch { /* try the next */ }
   }
   if (!fork) throw new Error('no main or master branch to compare with: pass a base, like `al-dente diff develop`');

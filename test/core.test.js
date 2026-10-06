@@ -130,6 +130,22 @@ test('history: a commit that adds a forbidden import shows up as a new rule brea
       await new Promise((r) => setTimeout(r, 25));
     }
     assert.deepEqual(drift.points.map((p) => [p.v, p.dv]), [[0, -1], [1, 1], [0, 0]]);
+
+    // A branch against main: all its commits as one change, like a PR before merging.
+    const main = git('rev-parse', 'HEAD').toString().trim();
+    git('branch', '-M', 'main'); // whatever init.defaultBranch says
+    git('checkout', '-qb', 'feature');
+    write('src/ui/extra.ts', "import { db } from '../data/db';\n");
+    git('add', '.');
+    git('commit', '-qm', 'Extra page');
+    write('src/ui/page.ts', "import { fmt } from '../shared/fmt';\n// tidy\n");
+    git('commit', '-qam', 'Tidy');
+    const k = await h.compare(readRules(repo));
+    assert.equal(k.compare.branch, 'feature');
+    assert.deepEqual(k.compare.commits.map((c) => c.title), ['Tidy', 'Extra page']);
+    assert.equal(k.range.from, main);
+    assert.deepEqual(k.changes.map((f) => [f.status, f.path]), [['A', 'src/ui/extra.ts'], ['M', 'src/ui/page.ts']]);
+    assert.deepEqual(k.violations, { before: 0, after: 1 });
   } finally {
     await h.close();
     done();

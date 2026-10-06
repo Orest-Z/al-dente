@@ -1,6 +1,7 @@
 // @ts-check
 // Local live-map server: keeps the import graph in memory, watches the project,
 // takes "an agent just edited X" pings from the hook, and streams updates over SSE.
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -265,13 +266,24 @@ export function startServer({ root, port }) {
       try { return void json(res, 200, await history.log(url.searchParams.get('all') === '1')); }
       catch { return void json(res, 200, { commits: [], branch: null, web: null }); } // a repo with no commits yet
     }
-    if (url.pathname === '/api/commit' || url.pathname === '/api/drift') {
+    if (url.pathname === '/api/diff') { // one file's lines, between the two commits a commit view compares
+      const q = url.searchParams, from = q.get('from') ?? '', to = q.get('to') ?? '';
+      const paths = [q.get('old'), q.get('path')].filter((p) => !!p);
+      if (!/^[0-9a-f]{40,64}$/i.test(from) || !/^[0-9a-f]{40,64}$/i.test(to) || !paths.length) return void json(res, 400, { error: 'Bad diff request.' });
+      return void execFile('git', ['-C', root, '--literal-pathspecs', 'diff', '-M', from, to, '--', ...paths], { maxBuffer: 1 << 24, windowsHide: true },
+        (err, out) => json(res, err ? 404 : 200, err ? { error: 'Could not read the diff.' } : { diff: out }));
+    }
+    if (url.pathname === '/api/commit' || url.pathname === '/api/drift' || url.pathname === '/api/compare') {
       const rev = url.searchParams.get('rev') ?? '';
       if (!history.available) return void json(res, 404, { error: 'This project is not in a git repository.' });
       if (!rules) return void json(res, 409, { error: `Save ${RULES_FILE} first: history is drawn against the plan.` });
       if (url.pathname === '/api/drift') {
         try { return void json(res, 200, await history.drift(rules, url.searchParams.get('all') === '1')); }
         catch { return void json(res, 200, { points: [], total: 0, done: true }); }
+      }
+      if (url.pathname === '/api/compare') {
+        try { return void json(res, 200, await history.compare(rules)); }
+        catch (e) { return void json(res, 404, { error: /** @type {Error} */ (e).message }); }
       }
       if (!/^[0-9a-f]{4,64}$/i.test(rev)) return void json(res, 400, { error: 'Unknown commit.' });
       try { return void json(res, 200, await history.commit(rules, rev)); }

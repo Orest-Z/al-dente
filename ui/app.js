@@ -38,6 +38,7 @@ const commitCache = new Map();
 // ------------------------------------------------------------------ lookups
 
 const past = () => !!hist?.data;
+const scope = () => (hist?.data?.compare ? 'on this branch' : 'in this commit');
 const edgeKey = (e) => `${e.from}>${e.to}`;
 function allEdges() {
   const removed = past() ? hist.data.edges.removed.map((e) => ({ ...e, kind: 'removed' })) : [];
@@ -352,10 +353,11 @@ function drawEdges() {
     else if (ch?.added) text = e.kind === 'violation' ? `✗ new · ${e.count}` : `new · ${e.count}`;
     else if (ch) text = `${e.kind === 'violation' ? '✗ ' : ''}${e.count} (${e.count > ch.was ? '+' : '−'}${Math.abs(e.count - ch.was)})`;
     const pill = text
-      ? `<g class="elabel${ch ? ' is-new' : ''}" transform="translate(${mid.x},${mid.y})"><g><rect x="${-(text.length * 3.5 + 8)}" y="-9" width="${text.length * 7 + 16}" height="18" rx="9"/><text>${esc(text)}</text></g></g>`
+      ? `<g class="elabel${ch?.added ? ' is-new' : ''}" transform="translate(${mid.x},${mid.y})"><g><rect x="${-(text.length * 3.5 + 8)}" y="-9" width="${text.length * 7 + 16}" height="18" rx="9"/><text>${esc(text)}</text></g></g>`
       : '';
     const flash = active(fx.flash, key) || ch?.added ? ' flash' : '';
-    return `<g class="edge k-${e.kind}${flash}" data-edge="${esc(key)}" style="${width}"><path class="hit" d="${d}"/><path class="line" d="${d}" marker-end="url(#m-${e.kind})"/>${pill}</g>`;
+    const old = past() && e.kind === 'violation' && !ch?.added ? ' old' : ''; // broken before this change: not its fault
+    return `<g class="edge k-${e.kind}${flash}${old}" data-edge="${esc(key)}" style="${width}"><path class="hit" d="${d}"/><path class="line" d="${d}" marker-end="url(#m-${e.kind})"/>${pill}</g>`;
   }).join('');
   applyFocus();
 }
@@ -381,7 +383,7 @@ function fileRow(id, rel) {
   const ch = hist?.changes?.get(rel);
   const name = relName(id, rel), cut = name.lastIndexOf('/') + 1;
   return `<li><button type="button" class="f-row${ch ? ' changed' : ''}" data-file="${esc(rel)}" title="${esc(rel)}">
-    <span class="f-top">${ch ? `<span class="f-st st-${ch.status}" title="${statusWord(ch.status)} in this commit">${ch.status}</span>` : ''}<span class="f-name"><span class="f-dir">${esc(name.slice(0, cut))}</span>${esc(name.slice(cut))}</span><span class="f-links">${links}${users ? `<span class="f-in" title="Imported by ${plural(users, 'file')}">used by ${users}</span>` : ''}</span></span>
+    <span class="f-top">${ch ? `<span class="f-st st-${ch.status}" title="${statusWord(ch.status)} ${scope()}">${ch.status}</span>` : ''}<span class="f-name"><span class="f-dir">${esc(name.slice(0, cut))}</span>${esc(name.slice(cut))}</span><span class="f-links">${links}${users ? `<span class="f-in" title="Imported by ${plural(users, 'file')}">used by ${users}</span>` : ''}</span></span>
     <span class="f-about${f?.about?.from === 'code' ? ' auto' : ''}">${md(f?.about?.text ?? (f ? '' : 'Not a source file'))}</span>
   </button></li>`;
 }
@@ -391,6 +393,7 @@ function drawNodes() {
   for (const [id, el] of nodeEls) if (!geo.pos.has(id)) { el.remove(); nodeEls.delete(id); }
   const touched = new Map();
   if (past()) for (const f of hist.data.changes) if (f.part) touched.set(f.part, (touched.get(f.part) ?? 0) + 1);
+  const fresh = new Set(past() ? hist.data.edges.added.filter((e) => e.kind === 'violation').map((e) => e.from) : []);
   for (const [id, n] of geo.pos) {
     let el = nodeEls.get(id);
     if (!el) {
@@ -414,20 +417,19 @@ function drawNodes() {
     const flag = editing
       ? `<span class="n-flag">${editing.actor === 'agent' ? 'Claude is editing' : 'You edited'}</span>`
       : affected ? '<span class="n-flag affected">May be affected</span>'
+      : touched.has(id) ? `<span class="n-flag changed">Changed · ${plural(touched.get(id), 'file')}</span>`
       : '';
     const list = filesOf(id);
     el.innerHTML = `
       <button type="button" class="n-main" aria-label="${esc(`${p.label}: ${plural(count, 'file')}${p.violations ? `, ${plural(p.violations, 'rule break')}` : ''}`)}">
         <span class="n-title">${esc(p.label)}</span>
         <span class="n-desc">${esc(p.description)}</span>
-        ${touched.has(id)
-          ? `<span class="n-path n-changed">Changed here · ${plural(touched.get(id), 'file')}</span>`
-          : `<span class="n-path">${esc(p.paths.map((x) => `${x}/`).join('  ') || 'not in al-dente.json')}</span>`}
+        <span class="n-path">${esc(p.paths.map((x) => `${x}/`).join('  ') || 'not in al-dente.json')}</span>
       </button>
       <button type="button" class="n-toggle" data-toggle aria-expanded="${open}" title="${open ? 'Hide' : 'Show'} the files in ${esc(p.label)}">${plural(count, 'file')}${chevron}</button>
       ${open ? `<ul class="n-files">${list.slice(0, MAX_ROWS).map((rel) => fileRow(id, rel)).join('')}</ul>` : ''}
       ${open && list.length > MAX_ROWS ? `<button type="button" class="f-more" data-more>+${list.length - MAX_ROWS} more files: see the side panel</button>` : ''}
-      ${p.violations ? `<span class="n-bad" title="${breaking(p.violations)}">✗ ${p.violations}</span>` : ''}
+      ${p.violations ? `<span class="n-bad${past() && !fresh.has(id) ? ' old' : ''}" title="${breaking(p.violations)}${past() && !fresh.has(id) ? ', all from before this change' : ''}">✗ ${p.violations}</span>` : ''}
       ${flag}`;
   }
 }
@@ -621,7 +623,7 @@ function fileDetails(rel) {
     <div class="chips">${partChip(part, 'part')}</div>
     ${part === UNMAPPED ? '<p>No part claims this file, so its imports aren\'t checked.</p>'
       : bad.length ? `<span class="verdict bad"><i>✗</i> ${breaking(bad.length)}</span>` : '<span class="verdict good"><i>✓</i> Fits the plan</span>'}
-    ${ch ? `<h3>In this commit</h3>${changeNotes(ch, true)}` : ''}
+    ${ch ? `<h3>${hist.data.compare ? 'On this branch' : 'In this commit'}</h3>${changeNotes(ch, true)}<pre class="diff" data-diff="${esc(rel)}">Loading the changes…</pre>` : ''}
     ${about?.exports?.length ? `<h3>Exports</h3><div class="exports">${about.exports.slice(0, 24).map((x) => `<code>${esc(x)}</code>`).join('')}${about.exports.length > 24 ? ` <small>+${about.exports.length - 24} more</small>` : ''}</div>` : ''}
     <h3>Imports${imps.length ? ` · ${imps.length}` : ''}</h3>
     ${imps.length
@@ -642,7 +644,7 @@ function edgeDetails(e) {
     planned: '<span class="verdict"><i>○</i> Allowed by the plan, not used yet</span>',
     violation: `<span class="verdict bad"><i>✗</i> Breaks the plan</span><p>${esc(from?.label)} may only use: ${may}.</p>`,
     unchecked: '<span class="verdict"><i>?</i> Not checked: involves files no part claims</span>',
-    removed: `<span class="verdict"><i>−</i> Removed in this commit</span><p>The parent commit had ${plural(e.count, 'import')} here.</p>`,
+    removed: `<span class="verdict"><i>−</i> Removed ${scope()}</span><p>${hist.data.compare ? esc(hist.data.compare.base) : 'The parent commit'} had ${plural(e.count, 'import')} here.</p>`,
   }[e.kind];
   const imps = e.kind === 'removed' || e.kind === 'planned' ? [] : edgeImports(e);
   const list = imps.slice(0, 200).map((i) => `<li><button type="button" class="imp" data-file="${esc(i.file)}"><code>${esc(i.file)}:${i.line}</code><code class="to">"${esc(i.spec)}" → ${esc(i.target)}</code></button></li>`).join('');
@@ -659,7 +661,38 @@ function renderDetails() {
   if (sel?.type === 'part' && geo?.pos.has(sel.id)) detailsEl.innerHTML = partDetails(sel.id);
   else if (sel?.type === 'file' && (S.files?.[sel.id] || S.unmapped?.includes(sel.id))) detailsEl.innerHTML = fileDetails(sel.id);
   else if (edge) detailsEl.innerHTML = edgeDetails(edge);
-  else { sel = null; detailsEl.innerHTML = overview(); }
+  else { sel = null; detailsEl.innerHTML = past() ? '' : overview(); } // a commit or branch: its own panel is the overview
+  detailsEl.hidden = !detailsEl.innerHTML;
+  fillDiff();
+}
+
+const diffCache = new Map();
+const DIFF_LINES = 400;
+/** A changed file's lines, fetched when its details open (a commit view only carries the counts). */
+async function fillDiff() {
+  const pre = detailsEl.querySelector('[data-diff]');
+  const ch = pre && hist?.changes?.get(pre.dataset.diff);
+  if (!ch) return;
+  const { from, to } = hist.data.range;
+  const key = `${from}..${to}:${ch.path}`;
+  if (!diffCache.has(key)) {
+    const q = new URLSearchParams({ from, to, path: ch.path, ...(ch.old ? { old: ch.old } : {}) });
+    let j;
+    try { j = await (await fetch(`/api/diff?${q}`)).json(); } catch { j = { error: 'The map server stopped.' }; }
+    if (diffCache.size > 30) diffCache.delete(diffCache.keys().next().value);
+    diffCache.set(key, j);
+  }
+  const j = diffCache.get(key);
+  if (!pre.isConnected) return;
+  if (j.error) return void (pre.textContent = j.error);
+  // Skip git's header lines; keep hunks (@@), added (+), removed (−) and context lines.
+  let hunk = false;
+  const lines = j.diff.replace(/\n$/, '').split('\n').filter((l) => (hunk ||= l.startsWith('@@')));
+  if (!lines.length) return void (pre.textContent = /^Binary/m.test(j.diff) ? 'Binary file.' : 'No line changes (renamed or mode change only).');
+  pre.innerHTML = lines.slice(0, DIFF_LINES).map((l) => {
+    const k = l.startsWith('@@') ? 'h' : l[0] === '+' ? 'a' : l[0] === '-' ? 'd' : '';
+    return `<span${k ? ` class="${k}"` : ''}>${esc(k === 'h' ? l.replace(/^(@@[^@]*@@).*/, '$1') : l) || ' '}</span>`;
+  }).join('') + (lines.length > DIFF_LINES ? `<span class="h">…${lines.length - DIFF_LINES} more lines</span>` : '');
 }
 
 function select(s) {
@@ -786,7 +819,8 @@ let loadTimer = 0, driftTimer = 0;
 
 async function loadLog() {
   const all = hist?.all ?? false;
-  const keep = past() ? hist.data.commit.hash : null;
+  const cmp = !!hist?.cmp; // comparing the branch: compare again (HEAD may have moved)
+  const keep = past() && !cmp ? hist.data.commit.hash : null;
   let j;
   try { j = await (await fetch(`/api/history${all ? '?all=1' : ''}`)).json(); }
   catch { $('#tl-caption').textContent = 'Could not read the git history.'; return; }
@@ -802,7 +836,7 @@ async function loadLog() {
   range.max = String(commits.length);
   $('#tl-first').textContent = commits.length ? when(commits[0].time) : '';
   const at = keep ? commits.findIndex((c) => c.hash === keep) : -1;
-  setIndex(at >= 0 ? at : commits.length);
+  if (cmp) showCompare(); else setIndex(at >= 0 ? at : commits.length);
   pollDrift();
 }
 
@@ -866,6 +900,12 @@ function drawChart() {
 function renderCaption() {
   const el = $('#tl-caption');
   const n = hist.commits.length;
+  $('#tl-compare').setAttribute('aria-pressed', String(!!hist.cmp));
+  if (hist.cmp) {
+    const k = hist.data?.compare;
+    el.innerHTML = `<span class="pill">PR</span><b>${esc(k?.branch ?? hist.branch ?? 'This branch')} → ${esc(k?.base ?? 'main')}</b><span>${k ? `${plural(k.commits.length, 'commit')} · what merging it would bring` : 'Comparing…'}</span>`;
+    return void ($('#tl-live').disabled = false);
+  }
   if (hist.index >= n) {
     el.innerHTML = `<b>Now</b><span>your working tree${hist.branch ? ` on <code>${esc(hist.branch)}</code>` : ''} · ${plural(n, hist.all ? 'commit' : 'step')} of history to the left</span>`;
   } else {
@@ -878,6 +918,7 @@ function renderCaption() {
 
 function setIndex(i) {
   const n = hist.commits.length;
+  hist.cmp = false;
   hist.index = Math.max(0, Math.min(n, i));
   range.value = String(hist.index);
   renderCaption();
@@ -905,6 +946,21 @@ function showCommit(data) {
   S = data.graph;
   render();
   renderCommit();
+}
+
+/** The checked-out branch against main as one change: the files and connections a merge would bring. */
+async function showCompare() {
+  setIndex(hist.commits.length);
+  hist.cmp = true;
+  renderCaption();
+  timelineEl.classList.add('loading');
+  let data;
+  try { data = await (await fetch('/api/compare')).json(); } catch { data = { error: 'The map server stopped.' }; }
+  timelineEl.classList.remove('loading');
+  if (!hist.cmp) return; // moved on meanwhile
+  if (data.error) { hist.cmp = false; renderCaption(); $('#tl-caption').textContent = data.error; return; }
+  showCommit(data);
+  renderCaption();
 }
 
 function showLive() {
@@ -956,6 +1012,7 @@ function renderCommit() {
   commitEl.hidden = !on;
   document.body.classList.toggle('past', on);
   if (!on) return;
+  for (const s of document.querySelectorAll('.legend .scope')) s.textContent = `${s.dataset.word} ${scope()}`;
   const { commit: c, changes, edges, violations: v } = hist.data;
   const add = changes.reduce((n, f) => n + (f.add ?? 0), 0), del = changes.reduce((n, f) => n + (f.del ?? 0), 0);
   const touched = [...new Set(changes.map((f) => f.part).filter(Boolean))];
@@ -965,11 +1022,15 @@ function renderCommit() {
     : touched.length ? '<span class="verdict"><i>○</i> Same connections between parts</span>'
     : '<span class="verdict"><i>○</i> Didn\'t touch any part\'s code</span>';
 
+  const older = v.after >= v.before && v.before
+    ? `<div class="c-older">${plural(v.before, 'older rule break')} left as ${v.before === 1 ? 'it was' : 'they were'}: faded on the map</div>` : '';
+  const connRow = ({ e, sign, note }) => `<li><button type="button" class="row" data-edge="${esc(edgeKey(e))}"><span class="sign">${sign}</span><span class="grow">${esc(labelOf(e.from))} → ${esc(labelOf(e.to))}</span><span class="meta${e.kind === 'violation' ? ' bad' : ''}">${note}</span></button></li>`;
+  // New and removed connections are the architecture news; busier or quieter ones are detail.
   const conn = [
-    ...edges.added.map((e) => ({ e, sign: '+', note: e.kind === 'violation' ? '✗ breaks the plan' : `new · ${plural(e.count, 'import')}` })),
+    ...edges.added.map((e) => ({ e, sign: '+', note: e.kind === 'violation' ? '✗ new, breaks the plan' : `new · ${plural(e.count, 'import')}` })),
     ...edges.removed.map((e) => ({ e, sign: '−', note: 'removed' })),
-    ...edges.changed.map((e) => ({ e, sign: '~', note: `${e.was} → ${e.count} imports` })),
-  ].map(({ e, sign, note }) => `<li><button type="button" class="row" data-edge="${esc(edgeKey(e))}"><span class="sign">${sign}</span><span class="grow">${esc(labelOf(e.from))} → ${esc(labelOf(e.to))}</span><span class="meta${e.kind === 'violation' ? ' bad' : ''}">${note}</span></button></li>`).join('');
+  ].map(connRow).join('');
+  const counts = edges.changed.map((e) => ({ e, sign: '', note: `${e.was} → ${e.count} imports` })).map(connRow).join('');
 
   // Files grouped by part, in plan order; then unmapped source; then tests; then everything else.
   const order = [...S.parts.map((p) => p.id), UNMAPPED, '~ignored', ''];
@@ -983,26 +1044,32 @@ function renderCommit() {
   };
   const filesHtml = groups.map(([g, list]) => `<div class="grp"><div class="grp-h" style="--part:${g && g !== '~ignored' ? colorOf(g) : 'transparent'}">${g && g !== '~ignored' ? '<span class="swatch"></span>' : ''}${title(g)}<small>${list.length}</small></div><ul class="rows">${list.map(fileLi).join('')}</ul></div>`).join('');
 
+  const k = hist.data.compare; // the whole branch against main, not one commit
   const meta = [
     c.prUrl ? `<a href="${esc(c.prUrl)}" target="_blank" rel="noopener">PR #${c.pr} ↗</a>` : c.pr ? `PR #${c.pr}` : '',
-    c.branch ? `<code>${esc(c.branch)}</code>` : '',
-    esc(c.author),
+    k ? plural(k.commits.length, 'commit') : '',
+    c.branch && !k ? `<code>${esc(c.branch)}</code>` : '',
+    `${k ? 'latest by ' : ''}${esc(c.author)}`,
     `<time title="${esc(new Date(c.time).toLocaleString())}">${when(c.time)}</time>`,
   ].filter(Boolean).join(' · ');
-  const body = c.pr ? c.body.split('\n').slice(1).join('\n').trim() : c.body;
+  const body = k ? k.commits.map((x) => `${x.hash.slice(0, 7)}  ${x.title}`).join('\n') : c.pr ? c.body.split('\n').slice(1).join('\n').trim() : c.body;
 
   commitEl.innerHTML = `
-    <header class="panel-head"><h2>${c.pr ? 'Pull request' : c.parents.length > 1 ? 'Merge' : 'Commit'}</h2>${c.url ? `<a class="hash" href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.hash.slice(0, 7))} ↗</a>` : `<code class="hash">${esc(c.hash.slice(0, 7))}</code>`}</header>
+    <header class="panel-head"><h2>${k ? 'Before you merge' : c.pr ? 'Pull request' : c.parents.length > 1 ? 'Merge' : 'Commit'}</h2>${c.url ? `<a class="hash" href="${esc(c.url)}" target="_blank" rel="noopener">${k ? 'GitHub' : esc(c.hash.slice(0, 7))} ↗</a>` : `<code class="hash">${esc(c.hash.slice(0, 7))}</code>`}</header>
     <div class="commit-body">
-      <div class="c-title">${esc(c.title)}</div>
+      <div class="c-title">${k ? `<code>${esc(k.branch)}</code> → <code>${esc(k.base)}</code>` : esc(c.title)}</div>
       <div class="c-meta">${meta}</div>
       <div class="c-stats">${plural(changes.length, 'file')} changed · +${add} −${del}${touched.length ? ` · ${plural(touched.length, 'part')}: ${touched.map((p) => `<span class="dot" style="--part:${colorOf(p)}"></span>${esc(labelOf(p))}`).join(', ')}` : ''}</div>
       ${verdict}
-      ${conn ? `<h3>Connections between parts</h3><ul class="rows">${conn}</ul>` : ''}
+      ${older}
+      ${conn || counts ? `<h3>Connections between parts</h3>${conn ? `<ul class="rows">${conn}</ul>` : '<p class="hint">None added or removed.</p>'}` : ''}
+      ${counts ? `<details class="c-msg"><summary>Import counts changed · ${edges.changed.length}</summary><ul class="rows">${counts}</ul></details>` : ''}
       <h3>Files changed</h3>
       ${filesHtml || '<p>No files changed in this project folder.</p>'}
-      ${body ? `<details class="c-msg"><summary>Full message</summary><pre>${esc(body)}</pre></details>` : ''}
-      <p class="hint">Judged against today's <code>al-dente.json</code>, so you can see when a break first crept in.</p>
+      ${body ? `<details class="c-msg"${k ? ' open' : ''}><summary>${k ? `Commits · ${k.commits.length}` : 'Full message'}</summary><pre>${esc(body)}</pre></details>` : ''}
+      <p class="hint">${k
+        ? `Everything committed on <code>${esc(k.branch)}</code> since it left <code>${esc(k.base)}</code>, like the pull request's Files changed. Click a file to see its lines.`
+        : 'Judged against today\'s <code>al-dente.json</code>, so you can see when a break first crept in.'}</p>
     </div>`;
 }
 
@@ -1139,7 +1206,7 @@ function showTip(e, ev) {
     planned: '○ Allowed by the plan, not used yet',
     violation: `✗ Breaks the plan: ${labelOf(e.from)} may not use ${labelOf(e.to)}`,
     unchecked: '? Involves files no part claims',
-    removed: '− Removed in this commit',
+    removed: `− Removed ${scope()}`,
   }[e.kind];
   const imps = e.kind === 'removed' || e.kind === 'planned' ? [] : edgeImports(e);
   const shown = imps.slice(0, 5);
@@ -1230,9 +1297,10 @@ range.addEventListener('input', () => setIndex(Number(range.value)));
 range.addEventListener('pointermove', showTlTip);
 range.addEventListener('pointerleave', () => { tlTip.hidden = true; });
 timelineEl.addEventListener('click', (ev) => {
-  const t = ev.target.closest('[data-step], [data-all], [data-live]');
+  const t = ev.target.closest('[data-step], [data-all], [data-live], [data-compare]');
   if (!t || !hist) return;
-  if (t.dataset.step) setIndex(hist.index + Number(t.dataset.step));
+  if (t.dataset.compare !== undefined) { if (hist.cmp) setIndex(hist.commits.length); else showCompare(); }
+  else if (t.dataset.step) setIndex(hist.index + Number(t.dataset.step));
   else if (t.dataset.all) { if ((t.dataset.all === '1') !== hist.all) { hist.all = t.dataset.all === '1'; loadLog(); } }
   else setIndex(hist.commits.length);
 });

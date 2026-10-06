@@ -42,8 +42,10 @@
         <div><svg viewBox="0 0 34 10"><path class="sw sw-violation" d="M1 5h26"/><path class="sw-head-violation" d="M26 1l7 4-7 4z"/></svg>Breaks the plan</div>
         <div><svg viewBox="0 0 34 10"><path class="sw sw-planned" d="M1 5h26"/></svg>Allowed, not used yet</div>
         <div class="live-only"><span class="sw-affected"></span>May be affected by the last edit</div>
-        <div class="past-only"><span class="sw-new">new</span>New in this commit</div>
-        <div class="past-only"><svg viewBox="0 0 34 10"><path class="sw sw-removed" d="M1 5h30"/></svg>Removed in this commit</div>
+        <div class="past-only"><svg viewBox="0 0 34 10"><path class="sw sw-violation sw-old" d="M1 5h26"/><path class="sw-head-violation sw-old" d="M26 1l7 4-7 4z"/></svg>Broke the plan before this</div>
+        <div class="past-only"><span class="sw-changed"></span><span class="scope" data-word="Changed">Changed in this commit</span></div>
+        <div class="past-only"><span class="sw-new">new</span><span class="scope" data-word="New">New in this commit</span></div>
+        <div class="past-only"><svg viewBox="0 0 34 10"><path class="sw sw-removed" d="M1 5h30"/></svg><span class="scope" data-word="Removed">Removed in this commit</span></div>
       </details>
 
       <div class="zoom hud">
@@ -71,6 +73,7 @@
         <div class="tl-nav">
           <button type="button" data-step="-1" aria-label="Older commit" title="Older (←)">‹</button>
           <button type="button" data-step="1" aria-label="Newer commit" title="Newer (→)">›</button>
+          <button id="tl-compare" type="button" class="tl-live" data-compare aria-pressed="false" title="Everything this branch would bring into main when merged, like a pull request's Files changed">Compare with main</button>
           <button id="tl-live" type="button" class="tl-live" data-live>Live</button>
         </div>
       </div>

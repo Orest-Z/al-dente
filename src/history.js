@@ -15,6 +15,8 @@ const MAX_COMMITS = 500;
 const MAX_SNAPSHOTS = 12;
 const MAX_SCANS = 200_000;
 const FORMAT = '%x1e%H%x1f%P%x1f%an%x1f%at%x1f%s%x1f%b%x1d';
+/** Where a branch is compared from when no base is given: the main line, as GitHub's "Files changed" does. */
+export const MAIN_REFS = ['origin/HEAD', 'origin/main', 'origin/master', 'main', 'master'];
 
 /** @typedef {import('./core.js').Rules} Rules */
 /** @typedef {import('./core.js').Import} Import */
@@ -286,7 +288,7 @@ export function createEngine(/** @type {string} */ root) {
     return { commits: parseLog(out), branch, web };
   }
 
-  return {
+  const api = {
     web,
     changedFiles,
     /** Every checked source file at `rev`, with its resolved imports. */
@@ -295,11 +297,11 @@ export function createEngine(/** @type {string} */ root) {
     /** Newest first. `all` includes commits from merged branches; otherwise one step per merge/PR on this branch. */
     log,
 
-    /** One commit: what it says, which files it changed, and how the map changed compared with its first parent. */
-    commit(/** @type {Rules} */ rules, /** @type {string} */ rev) {
+    /** One commit: what it says, which files it changed, and how the map changed compared with its first parent (or `base`). */
+    commit(/** @type {Rules} */ rules, /** @type {string} */ rev, /** @type {string=} */ base) {
       useRules(rules);
       const [meta] = parseLog(gitText('show', '-s', `--format=${FORMAT}`, rev));
-      const parent = meta.parents[0] ?? EMPTY_TREE;
+      const parent = base ?? meta.parents[0] ?? EMPTY_TREE;
       const graph = snapshot(rules, meta.hash);
       const before = load(rules, parent).imports;
       const now = load(rules, meta.hash).imports;
@@ -316,7 +318,30 @@ export function createEngine(/** @type {string} */ root) {
         changes,
         edges: edgeDiff(summary(rules, parent), graph),
         violations: { before: summary(rules, parent).violations, after: graph.violations },
+        range: { from: parent, to: meta.hash }, // for line diffs of its files
       };
+    },
+
+    /**
+     * The checked-out branch against where it forked from the main line: everything merging it would bring,
+     * like a PR's "Files changed" tab. Committed work only: uncommitted edits aren't part of a PR yet.
+     */
+    compare(/** @type {Rules} */ rules) {
+      const head = gitText('rev-parse', 'HEAD').trim();
+      for (const ref of MAIN_REFS) {
+        let fork;
+        try { fork = gitText('merge-base', ref, head).trim(); } catch { continue; }
+        const base = gitText('rev-parse', '--abbrev-ref', ref).trim().replace(/^origin\//, '');
+        const branch = gitText('rev-parse', '--abbrev-ref', 'HEAD').trim();
+        const commits = parseLog(gitText('log', `--format=${FORMAT}`, `${fork}..${head}`, '--', '.'));
+        const c = api.commit(rules, head, fork);
+        return {
+          ...c,
+          commit: { ...c.commit, pr: null, parents: [], title: branch, url: web ? `${web}/compare/${base}...${branch}` : null },
+          compare: { base, branch, commits: commits.map(({ hash, title, author, time }) => ({ hash, title, author, time })) },
+        };
+      }
+      throw new Error('No main or master branch to compare with.');
     },
 
     /**
@@ -351,6 +376,7 @@ export function createEngine(/** @type {string} */ root) {
     /** HEAD moved: the next drift call starts over (per-commit results stay cached, so only new commits cost). */
     headMoved() { drift = null; },
   };
+  return api;
 }
 
 /** Runs the engine in a worker thread and talks to it with messages. */
@@ -395,6 +421,7 @@ export function createHistory(/** @type {string} */ root) {
     available,
     log: (/** @type {boolean} */ all) => call('log', all),
     commit: (/** @type {Rules} */ rules, /** @type {string} */ rev) => call('commit', rules, rev),
+    compare: (/** @type {Rules} */ rules) => call('compare', rules),
     drift: (/** @type {Rules} */ rules, /** @type {boolean} */ all) => call('drift', rules, all),
     headMoved,
     /** Call `cb` when HEAD moves (commit, merge, pull, checkout, reset). */
