@@ -29,7 +29,7 @@ runs:
       run: |
         report="$RUNNER_TEMP/al-dente.md"
         set +e
-        node "$GITHUB_ACTION_PATH/bin/al-dente.js" diff ${BASE:+"$BASE"} --root "$ROOT" > "$report"
+        node "$GITHUB_ACTION_PATH/bin/al-dente.js" diff ${BASE:+"$BASE"} --head HEAD --root "$ROOT" > "$report" # the checked-out commit, so breaks link to their lines
         code=$?
         set -e
         [ -s "$report" ] || exit "$code" # al-dente itself failed; the reason is in the log above
