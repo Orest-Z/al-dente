@@ -27,6 +27,10 @@
 <!-- 1-minute demo video: in GitHub's README editor, drag demo-github.mp4 onto the empty line below. GitHub uploads it and inserts a link that plays inline. -->
 
 
+https://github.com/user-attachments/assets/057760bb-f509-4e1a-9b0c-65433329d516
+
+
+
 ## How it works
 
 1. **Decide.** Ask Claude to *"design the architecture for this app with al dente"*. It proposes 2–3 options in plain words, you pick one, and the plan is saved to `al-dente.json`. From then on, every Claude session starts knowing the plan, so it imports the right way the first time.
