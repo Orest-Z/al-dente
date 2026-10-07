@@ -2,5 +2,9 @@
   "name": "al-dente",
   "version": "0.1.0",
   "description": "Checks every edit against your architecture plan (al-dente.json) and shows it live on a map.",
-  "author": { "name": "Orest Zogju" }
+  "author": { "name": "Orest Zogju" },
+  "homepage": "https://orest-z.github.io/al-dente/",
+  "repository": "https://github.com/Orest-Z/al-dente",
+  "license": "MIT",
+  "keywords": ["architecture", "hooks", "guardrails", "dependency-rules", "live-map", "typescript", "python"]
 }

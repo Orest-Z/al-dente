@@ -1,4 +1,6 @@
 // @ts-check
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Git history for the timeline: the list of commits (each merged PR is one step on the main line),
 // the map as it was at any commit compared with its parent, and the "drift" of rule breaks over time.
 // Everything is read from git objects (the working tree is never touched), in a worker thread so the

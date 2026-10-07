@@ -2,6 +2,27 @@
   "name": "al-dente",
   "version": "0.1.0",
   "description": "A live architecture map your coding agent has to respect. Keeps vibe-coded apps from turning into spaghetti.",
+  "author": "Orest Zogju",
+  "license": "MIT",
+  "homepage": "https://orest-z.github.io/al-dente/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Orest-Z/al-dente.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Orest-Z/al-dente/issues"
+  },
+  "keywords": [
+    "claude-code",
+    "claude-code-plugin",
+    "architecture",
+    "dependency-rules",
+    "import-linter",
+    "live-map",
+    "guardrails",
+    "typescript",
+    "python"
+  ],
   "type": "module",
   "bin": {
     "al-dente": "bin/al-dente.js"
@@ -16,6 +37,5 @@
   },
   "engines": {
     "node": ">=20"
-  },
-  "license": "MIT"
+  }
 }

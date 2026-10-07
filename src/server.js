@@ -1,4 +1,6 @@
 // @ts-check
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Local live-map server: keeps the import graph in memory, watches the project,
 // takes "an agent just edited X" pings from the hook, and streams updates over SSE.
 import { execFile } from 'node:child_process';

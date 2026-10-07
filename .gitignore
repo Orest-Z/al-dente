@@ -1,2 +1,10 @@
 node_modules/
 .claude/
+
+# benchmark runs (each a full clone of the shop) and scratch clones
+bench/runs/
+bench/validate/
+
+# private working notes: kept on disk, never in git
+CLAUDE.md
+docs/sessions/

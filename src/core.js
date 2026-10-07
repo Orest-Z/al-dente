@@ -1,4 +1,6 @@
 // @ts-check
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Core of al-dente: read the architecture rules, resolve each file's imports
 // (no dependencies, any TypeScript version; Python in python.js), and turn them into a part-level graph.
 import { execFileSync } from 'node:child_process';

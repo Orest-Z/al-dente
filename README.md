@@ -61,6 +61,8 @@ On the map, open any part to see its files, each with a one-line description (fr
 /plugin install al-dente@al-dente
 ```
 
+Needs [Node.js](https://nodejs.org) 20 or newer and git on your PATH: the hooks run on Node, and Claude Code's native installer doesn't include it.
+
 Then, in your project, ask Claude to design or map the architecture, and to open the live map. From a terminal, the same map is `npx al-dente` (the npm package is coming soon; until then, `node bin/al-dente.js` from a clone).
 
 ## Commands
@@ -91,7 +93,7 @@ jobs:
         with:
           fetch-depth: 0 # the base branch is needed for the comparison
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: Orest-Z/al-dente@main
+      - uses: Orest-Z/al-dente@v1
         # with:
         #   root: apps/web    # folder with al-dente.json (default: the repo root)
         #   comment: false    # only write the job summary
@@ -145,4 +147,4 @@ node bin/al-dente.js --root examples/shop
 
 ## License
 
-MIT
+MIT © 2026 [Orest Zogju](https://github.com/Orest-Z). See [LICENSE](LICENSE).

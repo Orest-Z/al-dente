@@ -1,9 +1,12 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { parseArgs } from 'node:util';
 
 const HELP = `al-dente: a live architecture map your coding agent has to respect
+by Orest Zogju, MIT license: https://github.com/Orest-Z/al-dente
 
 Usage
   al-dente [map]     open the live map for this project (default)

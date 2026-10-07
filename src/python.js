@@ -1,4 +1,6 @@
 // @ts-check
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Python for al-dente: read a file's imports and resolve them to files in the project the way Python's
 // import system would, from the file layout alone (no Python needed): relative imports, packages and
 // modules under the project root, a src/ layout or any other folder that holds a top-level package,

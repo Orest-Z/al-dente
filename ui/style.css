@@ -1,3 +1,5 @@
+/* Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+   SPDX-License-Identifier: MIT */
 /* al-dente live map. Colors: categorical slots for part identity, a fixed status set
    (good / warning / critical) for meaning; text always wears ink tokens. */
 :root {
