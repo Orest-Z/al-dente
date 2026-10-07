@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Synthetic "big" TS repo for al-dente perf tests: 12 layered parts (each may use the next three),
 // N files with ~0.5% forbidden imports, a gitignored generated file, and a git history with PR merges.
 // Usage: node scripts/make-big-repo.mjs <dir> [files=4800] [commits=60]   (~45 s for the defaults on Windows)

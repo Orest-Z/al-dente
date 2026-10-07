@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Measures what matters on a big repo: startup, bytes pushed per save, how long the hook waits, history cost,
 // and whether the server stays responsive meanwhile. Usage: node scripts/bench.mjs <repo> [port=4800]
 // (make a repo with scripts/make-big-repo.mjs). Edits one file and creates one, then restores both.

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Claude Code SessionStart hook: tells Claude the plan before it writes any code, so it imports the right
 // way the first time instead of being corrected by the edit hook. Whatever this prints becomes context,
 // so it stays short, and it prints nothing in projects without al-dente.json.

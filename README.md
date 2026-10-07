@@ -147,4 +147,4 @@ node bin/al-dente.js --root examples/shop
 
 ## License
 
-MIT
+MIT © 2026 [Orest Zogju](https://github.com/Orest-Z). See [LICENSE](LICENSE).
