@@ -93,7 +93,7 @@ jobs:
         with:
           fetch-depth: 0 # the base branch is needed for the comparison
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: Orest-Z/al-dente@main
+      - uses: Orest-Z/al-dente@v1
         # with:
         #   root: apps/web    # folder with al-dente.json (default: the repo root)
         #   comment: false    # only write the job summary
