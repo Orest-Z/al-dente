@@ -1,3 +1,5 @@
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Screenshots of the live map through headless Chrome (DevTools protocol over Node's built-in WebSocket; no deps).
 // Usage: node scripts/screenshot.mjs <url> <out-prefix> [steps.json]   Set CHROME to the browser binary if needed.
 // steps: [{ "js": "...", "wait": 600, "shot": "name", "w": 1600, "h": 1000, "dark": true }]

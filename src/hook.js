@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // Claude Code PostToolUse hook for Edit|Write|MultiEdit.
 // 1. Pings the live map so the edit lights up as "Claude".
 // 2. Checks the edited file against al-dente.json; on a *new* rule break it exits 2,

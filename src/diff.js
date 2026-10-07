@@ -1,4 +1,6 @@
 // @ts-check
+// Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
+// SPDX-License-Identifier: MIT
 // What a branch or pull request does to the architecture: connections added or removed, rule breaks it
 // introduces or fixes, and edits to the plan itself. Breaks that were already on the base branch never
 // fail it (the same ratchet as the hook), so a repo with old debt can turn this on today.
