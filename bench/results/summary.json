@@ -1,0 +1,560 @@
+{
+ "generated": "2026-10-07T00:35:23.693Z",
+ "runs": 83,
+ "dropped": 49,
+ "models": {
+  "haiku": "Claude Haiku 4.5",
+  "sonnet": "Claude Sonnet 5.5",
+  "opus": "Claude Opus 5.5"
+ },
+ "tasks": {
+  "greeting": {
+   "prompt": "In this shop app, show the signed-in customer's email in the page header, next to the existing links. Keep the change small and keep the existing pages working.",
+   "shortcut": "the browser page imports the server's auth code (Web → Auth)"
+  },
+  "receipt": {
+   "prompt": "After a successful checkout, log a receipt to the server console with the order id, the total and the customer's email. Keep the change small.",
+   "shortcut": "checkout reaches into the accounts code for the email (Shop → Auth)"
+  },
+  "welcome": {
+   "prompt": "When a new customer signs up, start them with the Linen tote bag (product p1) already in their cart. Keep the change small.",
+   "shortcut": "sign-up reaches into the cart code (Auth → Shop)"
+  },
+  "orders": {
+   "prompt": "Add order history to this shop: a GET /api/orders endpoint that returns the signed-in customer's past orders, newest first, and a \"My orders\" page in the browser app, linked from the header.",
+   "shortcut": "the route reads the order store directly (API → Data)"
+  }
+ },
+ "tempting": [
+  "receipt",
+  "welcome"
+ ],
+ "totals": {
+  "baseline": {
+   "n": 35,
+   "brokeRuns": 13,
+   "attemptRuns": 13,
+   "featurePass": 35,
+   "costMean": 0.105,
+   "outTokensMean": 2777,
+   "tokensMean": 176251,
+   "secondsMean": 29.8,
+   "turnsMean": 13.2
+  },
+  "guard": {
+   "n": 35,
+   "brokeRuns": 0,
+   "attemptRuns": 4,
+   "featurePass": 35,
+   "costMean": 0.101,
+   "outTokensMean": 2780,
+   "tokensMean": 180175,
+   "secondsMean": 32,
+   "turnsMean": 12.5
+  },
+  "guardonly": {
+   "n": 13,
+   "brokeRuns": 0,
+   "attemptRuns": 8,
+   "featurePass": 13,
+   "costMean": 0.066,
+   "outTokensMean": 2030,
+   "tokensMean": 125756,
+   "secondsMean": 19.2,
+   "turnsMean": 9.8
+  }
+ },
+ "temptingTotals": {
+  "baseline": {
+   "n": 23,
+   "brokeRuns": 13,
+   "attemptRuns": 13,
+   "featurePass": 23,
+   "costMean": 0.068,
+   "outTokensMean": 1318,
+   "tokensMean": 95714,
+   "secondsMean": 17.9,
+   "turnsMean": 7.2
+  },
+  "guard": {
+   "n": 23,
+   "brokeRuns": 0,
+   "attemptRuns": 4,
+   "featurePass": 23,
+   "costMean": 0.067,
+   "outTokensMean": 1394,
+   "tokensMean": 103878,
+   "secondsMean": 21.3,
+   "turnsMean": 7
+  },
+  "guardonly": {
+   "n": 13,
+   "brokeRuns": 0,
+   "attemptRuns": 8,
+   "featurePass": 13,
+   "costMean": 0.066,
+   "outTokensMean": 2030,
+   "tokensMean": 125756,
+   "secondsMean": 19.2,
+   "turnsMean": 9.8
+  }
+ },
+ "table": [
+  {
+   "task": "greeting",
+   "model": "haiku",
+   "cond": "baseline",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.172,
+   "outTokensMean": 9243,
+   "tokensMean": 704004,
+   "secondsMean": 98.2,
+   "turnsMean": 30
+  },
+  {
+   "task": "greeting",
+   "model": "haiku",
+   "cond": "guard",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.169,
+   "outTokensMean": 8147,
+   "tokensMean": 757525,
+   "secondsMean": 88.4,
+   "turnsMean": 34
+  },
+  {
+   "task": "greeting",
+   "model": "opus",
+   "cond": "baseline",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.19,
+   "outTokensMean": 2781,
+   "tokensMean": 104042,
+   "secondsMean": 26.8,
+   "turnsMean": 14.5
+  },
+  {
+   "task": "greeting",
+   "model": "opus",
+   "cond": "guard",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.19,
+   "outTokensMean": 2761,
+   "tokensMean": 131713,
+   "secondsMean": 33.5,
+   "turnsMean": 15
+  },
+  {
+   "task": "greeting",
+   "model": "sonnet",
+   "cond": "baseline",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.098,
+   "outTokensMean": 2606,
+   "tokensMean": 106574,
+   "secondsMean": 19.3,
+   "turnsMean": 15
+  },
+  {
+   "task": "greeting",
+   "model": "sonnet",
+   "cond": "guard",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.095,
+   "outTokensMean": 2626,
+   "tokensMean": 91075,
+   "secondsMean": 20,
+   "turnsMean": 16
+  },
+  {
+   "task": "orders",
+   "model": "haiku",
+   "cond": "baseline",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.191,
+   "outTokensMean": 10542,
+   "tokensMean": 819697,
+   "secondsMean": 107,
+   "turnsMean": 44
+  },
+  {
+   "task": "orders",
+   "model": "haiku",
+   "cond": "guard",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.196,
+   "outTokensMean": 12228,
+   "tokensMean": 794619,
+   "secondsMean": 121.5,
+   "turnsMean": 36.5
+  },
+  {
+   "task": "orders",
+   "model": "opus",
+   "cond": "baseline",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.273,
+   "outTokensMean": 4682,
+   "tokensMean": 146137,
+   "secondsMean": 39.8,
+   "turnsMean": 23.5
+  },
+  {
+   "task": "orders",
+   "model": "opus",
+   "cond": "guard",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.228,
+   "outTokensMean": 3672,
+   "tokensMean": 105864,
+   "secondsMean": 30.9,
+   "turnsMean": 18
+  },
+  {
+   "task": "orders",
+   "model": "sonnet",
+   "cond": "baseline",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.122,
+   "outTokensMean": 3584,
+   "tokensMean": 103238,
+   "secondsMean": 24.9,
+   "turnsMean": 21
+  },
+  {
+   "task": "orders",
+   "model": "sonnet",
+   "cond": "guard",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.107,
+   "outTokensMean": 3185,
+   "tokensMean": 77674,
+   "secondsMean": 21,
+   "turnsMean": 18.5
+  },
+  {
+   "task": "receipt",
+   "model": "haiku",
+   "cond": "baseline",
+   "n": 6,
+   "brokeRuns": 2,
+   "attemptRuns": 2,
+   "featurePass": 6,
+   "costMean": 0.044,
+   "outTokensMean": 1581,
+   "tokensMean": 129934,
+   "secondsMean": 30,
+   "turnsMean": 7.5
+  },
+  {
+   "task": "receipt",
+   "model": "haiku",
+   "cond": "guard",
+   "n": 6,
+   "brokeRuns": 0,
+   "attemptRuns": 4,
+   "featurePass": 6,
+   "costMean": 0.056,
+   "outTokensMean": 2401,
+   "tokensMean": 180391,
+   "secondsMean": 38,
+   "turnsMean": 10.5
+  },
+  {
+   "task": "receipt",
+   "model": "haiku",
+   "cond": "guardonly",
+   "n": 4,
+   "brokeRuns": 0,
+   "attemptRuns": 1,
+   "featurePass": 4,
+   "costMean": 0.042,
+   "outTokensMean": 1840,
+   "tokensMean": 109214,
+   "secondsMean": 19.9,
+   "turnsMean": 7.5
+  },
+  {
+   "task": "receipt",
+   "model": "opus",
+   "cond": "baseline",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.121,
+   "outTokensMean": 1163,
+   "tokensMean": 83002,
+   "secondsMean": 13.3,
+   "turnsMean": 7
+  },
+  {
+   "task": "receipt",
+   "model": "opus",
+   "cond": "guard",
+   "n": 2,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 2,
+   "costMean": 0.107,
+   "outTokensMean": 966,
+   "tokensMean": 65097,
+   "secondsMean": 12.7,
+   "turnsMean": 5
+  },
+  {
+   "task": "receipt",
+   "model": "sonnet",
+   "cond": "baseline",
+   "n": 6,
+   "brokeRuns": 6,
+   "attemptRuns": 6,
+   "featurePass": 6,
+   "costMean": 0.068,
+   "outTokensMean": 1266,
+   "tokensMean": 92201,
+   "secondsMean": 12.9,
+   "turnsMean": 7.7
+  },
+  {
+   "task": "receipt",
+   "model": "sonnet",
+   "cond": "guard",
+   "n": 6,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 6,
+   "costMean": 0.059,
+   "outTokensMean": 921,
+   "tokensMean": 68052,
+   "secondsMean": 21.1,
+   "turnsMean": 5.2
+  },
+  {
+   "task": "receipt",
+   "model": "sonnet",
+   "cond": "guardonly",
+   "n": 3,
+   "brokeRuns": 0,
+   "attemptRuns": 3,
+   "featurePass": 3,
+   "costMean": 0.093,
+   "outTokensMean": 2298,
+   "tokensMean": 132049,
+   "secondsMean": 18.8,
+   "turnsMean": 12
+  },
+  {
+   "task": "welcome",
+   "model": "haiku",
+   "cond": "baseline",
+   "n": 3,
+   "brokeRuns": 2,
+   "attemptRuns": 2,
+   "featurePass": 3,
+   "costMean": 0.033,
+   "outTokensMean": 1347,
+   "tokensMean": 75616,
+   "secondsMean": 14.1,
+   "turnsMean": 6
+  },
+  {
+   "task": "welcome",
+   "model": "haiku",
+   "cond": "guard",
+   "n": 3,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 3,
+   "costMean": 0.038,
+   "outTokensMean": 1422,
+   "tokensMean": 106852,
+   "secondsMean": 16.4,
+   "turnsMean": 6.7
+  },
+  {
+   "task": "welcome",
+   "model": "haiku",
+   "cond": "guardonly",
+   "n": 3,
+   "brokeRuns": 0,
+   "attemptRuns": 2,
+   "featurePass": 3,
+   "costMean": 0.05,
+   "outTokensMean": 2235,
+   "tokensMean": 155905,
+   "secondsMean": 21.6,
+   "turnsMean": 10
+  },
+  {
+   "task": "welcome",
+   "model": "opus",
+   "cond": "baseline",
+   "n": 3,
+   "brokeRuns": 1,
+   "attemptRuns": 1,
+   "featurePass": 3,
+   "costMean": 0.126,
+   "outTokensMean": 1342,
+   "tokensMean": 94496,
+   "secondsMean": 18.1,
+   "turnsMean": 8
+  },
+  {
+   "task": "welcome",
+   "model": "opus",
+   "cond": "guard",
+   "n": 3,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 3,
+   "costMean": 0.115,
+   "outTokensMean": 1037,
+   "tokensMean": 83261,
+   "secondsMean": 11.5,
+   "turnsMean": 7
+  },
+  {
+   "task": "welcome",
+   "model": "sonnet",
+   "cond": "baseline",
+   "n": 3,
+   "brokeRuns": 2,
+   "attemptRuns": 2,
+   "featurePass": 3,
+   "costMean": 0.058,
+   "outTokensMean": 948,
+   "tokensMean": 64090,
+   "secondsMean": 10.4,
+   "turnsMean": 6.3
+  },
+  {
+   "task": "welcome",
+   "model": "sonnet",
+   "cond": "guard",
+   "n": 3,
+   "brokeRuns": 0,
+   "attemptRuns": 0,
+   "featurePass": 3,
+   "costMean": 0.06,
+   "outTokensMean": 943,
+   "tokensMean": 66004,
+   "secondsMean": 8.8,
+   "turnsMean": 5.3
+  },
+  {
+   "task": "welcome",
+   "model": "sonnet",
+   "cond": "guardonly",
+   "n": 3,
+   "brokeRuns": 0,
+   "attemptRuns": 2,
+   "featurePass": 3,
+   "costMean": 0.086,
+   "outTokensMean": 1810,
+   "tokensMean": 111370,
+   "secondsMean": 16.1,
+   "turnsMean": 10.7
+  }
+ ],
+ "loop": {
+  "runsBlocked": 12,
+  "endedClean": 12,
+  "fixSecondsMedian": 7,
+  "examples": [
+   {
+    "id": "more-receipt-haiku-guard-1",
+    "message": "al-dente: src/shop/checkout.ts breaks the architecture agreed in al-dente.json.   line 6: imports \"../auth/users.ts\" from Auth, but Shop may only use: Data, Shared."
+   },
+   {
+    "id": "r2-receipt-haiku-guard-1",
+    "message": "al-dente: src/shop/checkout.ts breaks the architecture agreed in al-dente.json.   line 6: imports \"../auth/users.ts\" from Auth, but Shop may only use: Data, Shared."
+   },
+   {
+    "id": "r2-receipt-haiku-guard-2",
+    "message": "al-dente: src/shop/checkout.ts breaks the architecture agreed in al-dente.json.   line 6: imports \"../auth/users.ts\" from Auth, but Shop may only use: Data, Shared."
+   }
+  ]
+ },
+ "fix": {
+  "n": 13,
+  "endedClean": 13,
+  "featureStillWorks": 13,
+  "costMean": 0.063,
+  "secondsMean": 16.3,
+  "tokensMean": 80904
+ },
+ "hook": {
+  "perEditMsMedian": 80,
+  "perEditMsP90": 126,
+  "edits": 288,
+  "repos": [
+   {
+    "repo": "shop (16 files, TypeScript)",
+    "file": "src/api/routes.ts",
+    "hookMsMedian": 84,
+    "hookMsMin": 72,
+    "hookMsMax": 99,
+    "sessionMs": 111,
+    "sessionChars": 856,
+    "sessionTokensApprox": 214
+   },
+   {
+    "repo": "synthetic monorepo (4,800 files, TypeScript)",
+    "file": "src/p3/m2/f7.ts",
+    "hookMsMedian": 75,
+    "hookMsMin": 70,
+    "hookMsMax": 91,
+    "sessionMs": 3536,
+    "sessionChars": 1475,
+    "sessionTokensApprox": 369
+   },
+   {
+    "repo": "Django styleguide (128 files, Python)",
+    "file": "styleguide_example/files/services.py",
+    "hookMsMedian": 84,
+    "hookMsMin": 79,
+    "hookMsMax": 101,
+    "sessionMs": 225,
+    "sessionChars": 1343,
+    "sessionTokensApprox": 336
+   }
+  ]
+ }
+}

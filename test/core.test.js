@@ -218,6 +218,32 @@ test('hook: only breaks this edit introduced block Claude; breaks already commit
   }
 });
 
+test('monorepo: the plan nearest to the edited file counts, and session start finds plans in subfolders', () => {
+  const { repo, write, done } = tempRepo();
+  const run = (script, input) => {
+    try {
+      return { code: 0, out: execFileSync('node', [fileURLToPath(new URL(`../src/${script}`, import.meta.url))], { input, env: { ...process.env, CLAUDE_PROJECT_DIR: repo, AL_DENTE_PORT: '9' }, stdio: 'pipe' }).toString() };
+    } catch (e) { return { code: e.status, out: e.stderr.toString() }; }
+  };
+  try {
+    fs.rmSync(path.join(repo, 'al-dente.json')); // no plan where Claude Code was opened, only in the app
+    write('apps/web/al-dente.json', JSON.stringify({ parts: { ui: { paths: ['src/ui'], uses: [] }, data: { paths: ['src/data'], uses: [] } } }));
+    write('apps/web/src/data/db.ts', 'export const db = 1;\n');
+    write('apps/web/src/ui/page.ts', "import { db } from '../data/db';\n");
+    const r = run('hook.js', JSON.stringify({ tool_name: 'Write', tool_input: { file_path: path.join(repo, 'apps/web/src/ui/page.ts') } }));
+    assert.equal(r.code, 2);
+    assert.match(r.out, /^al-dente: apps\/web\/src\/ui\/page\.ts breaks the architecture agreed in apps\/web\/al-dente\.json\.$/m);
+    assert.equal(run('hook.js', JSON.stringify({ tool_name: 'Write', tool_input: { file_path: path.join(repo, 'src/ui/x.ts') } })).code, 0, 'files outside the app have no plan');
+
+    const s = run('session.js', '{"source":"startup"}').out;
+    assert.match(s, /^The architecture of apps\/web\/ is agreed in apps\/web\/al-dente\.json/m);
+    assert.match(s, /^- ui \(apps\/web\/src\/ui\) may use: nothing outside itself$/m);
+    assert.match(s, /^- apps\/web\/src\/ui\/page\.ts:1 imports "\.\.\/data\/db" \(ui → data\)$/m);
+  } finally {
+    done();
+  }
+});
+
 test('diff: a branch is judged only on the breaks it adds, and renders a PR comment with a Mermaid map', () => {
   const { repo, git, write, done } = tempRepo();
   const cli = (...args) => {
