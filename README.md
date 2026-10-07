@@ -61,6 +61,8 @@ On the map, open any part to see its files, each with a one-line description (fr
 /plugin install al-dente@al-dente
 ```
 
+Needs [Node.js](https://nodejs.org) 20 or newer and git on your PATH: the hooks run on Node, and Claude Code's native installer doesn't include it.
+
 Then, in your project, ask Claude to design or map the architecture, and to open the live map. From a terminal, the same map is `npx al-dente` (the npm package is coming soon; until then, `node bin/al-dente.js` from a clone).
 
 ## Commands
