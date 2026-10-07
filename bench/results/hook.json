@@ -1,0 +1,32 @@
+[
+ {
+  "repo": "shop (16 files, TypeScript)",
+  "file": "src/api/routes.ts",
+  "hookMsMedian": 84,
+  "hookMsMin": 72,
+  "hookMsMax": 99,
+  "sessionMs": 111,
+  "sessionChars": 856,
+  "sessionTokensApprox": 214
+ },
+ {
+  "repo": "synthetic monorepo (4,800 files, TypeScript)",
+  "file": "src/p3/m2/f7.ts",
+  "hookMsMedian": 75,
+  "hookMsMin": 70,
+  "hookMsMax": 91,
+  "sessionMs": 3536,
+  "sessionChars": 1475,
+  "sessionTokensApprox": 369
+ },
+ {
+  "repo": "Django styleguide (128 files, Python)",
+  "file": "styleguide_example/files/services.py",
+  "hookMsMedian": 84,
+  "hookMsMin": 79,
+  "hookMsMax": 101,
+  "sessionMs": 225,
+  "sessionChars": 1343,
+  "sessionTokensApprox": 336
+ }
+]
