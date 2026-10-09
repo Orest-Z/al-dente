@@ -118,6 +118,8 @@ The comment shows the parts as a diagram (new connections thick, breaks red), th
 
 A file belongs to the part with the longest matching path. Imports inside a part are always fine; imports into another part must be listed in `uses`. In Java, a path is a package folder (`src/main/java/com/acme/shop/web`) or a whole Maven or Gradle module (`billing`).
 
+A part may not import files that no part claims either, so code can't slip past the rules through a helper outside the plan. Files outside every part, like entry points and scripts, may import any part, and generated code your `.gitignore` excludes doesn't count.
+
 Tests, stories and migrations aren't architecture, so they may import anything. To choose yourself, add an `ignore` list of globs (the default is `["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/__mocks__/**", "**/test/**", "**/tests/**", "**/e2e/**", "**/*.stories.*", "**/test_*.py", "**/*_test.py", "**/conftest.py", "**/migrations/*.py", "**/alembic/versions/*.py", "**/src/androidTest/**", "**/src/integrationTest/**", "**/src/testFixtures/**"]`; `[]` checks everything). Files your `.gitignore` excludes, like generated code, are skipped too.
 
 ## What it understands

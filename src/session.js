@@ -34,11 +34,11 @@ try {
     try { rules = readRules(path.join(root, dir)); }
     catch (e) { return [`al-dente: ${file} is invalid (${e.message}), so edits can't be checked against the architecture. Offer to fix it.`]; }
     if (!rules) return [];
-    const label = (id) => rules.byId.get(id).label;
+    const label = (id) => rules.byId.get(id)?.label ?? 'no part'; // files no part claims
     const broken = [...diskImports(path.join(root, dir), rules)].flatMap(([rel, imports]) => violationsIn(rules, rel, imports).map((v) => ({ rel, ...v })));
     const ignore = JSON.stringify(rules.ignore) === JSON.stringify(DEFAULT_IGNORE) ? 'Tests, stories and migrations' : rules.ignore.join(', ');
     return [
-      `${dir ? `The architecture of ${dir}/` : "This project's architecture"} is agreed in ${file} and enforced by al-dente: an edit that imports from a part its own part may not use is blocked.`,
+      `${dir ? `The architecture of ${dir}/` : "This project's architecture"} is agreed in ${file} and enforced by al-dente: an edit that imports from a part its own part may not use, or from a file no part claims, is blocked.`,
       'Parts (folders) and what each may import from:',
       ...rules.parts.map((p) => `- ${p.label} (${p.paths.map(at).join(', ')}) may use: ${p.uses.map(label).join(', ') || 'nothing outside itself'}`),
       `Imports inside a part are always fine.${rules.ignore.length ? ` ${ignore} aren't checked.` : ''} Put new code in the part it belongs to, and route through an allowed part instead of reaching across.`,
