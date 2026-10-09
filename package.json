@@ -21,7 +21,8 @@
     "live-map",
     "guardrails",
     "typescript",
-    "python"
+    "python",
+    "java"
   ],
   "type": "module",
   "bin": {

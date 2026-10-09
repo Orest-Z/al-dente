@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { buildGraph, createResolver, describeFile, diskIO, importDelta, importSpecs, isIgnored, isResolverConfig, isSource, toRel } from './core.js';
+import { javaPackage } from './java.js';
 
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'; // git's well-known empty tree: the "parent" of a root commit
 const MAX_COMMITS = 500;
@@ -78,6 +79,8 @@ export function createEngine(/** @type {string} */ root) {
   const configs = new Map();
   /** @type {Map<string, { specs: import('./core.js').Spec[], about: About }>} "blob:path" -> what's in that file. Blobs never change. */
   const scans = new Map();
+  /** @type {Map<string, string>} blob id -> the package a .java file declares (the Java resolver checks folders against it) */
+  const packages = new Map();
   /** Imports resolved under one set of files + configs. Most commits only edit files, so this carries over. */
   let ctx = { sig: '', resolved: /** @type {Map<string, Import[]>} */ (new Map()) };
   let rulesKey = '';
@@ -154,14 +157,16 @@ export function createEngine(/** @type {string} */ root) {
     const missingCfg = cfgs.map((rel) => /** @type {string} */ (tree.get(rel))).filter((id) => !configs.has(id));
     const texts = readBlobs([...missing.map((rel) => /** @type {string} */ (tree.get(rel))), ...missingCfg]);
     for (const id of missingCfg) configs.set(id, texts.get(id) ?? '');
-    if (scans.size + missing.length > MAX_SCANS) scans.clear(); // ponytail: crude cap; an LRU if very long histories thrash
+    if (scans.size + missing.length > MAX_SCANS) { scans.clear(); packages.clear(); } // ponytail: crude cap; an LRU if very long histories thrash
     for (const rel of missing) {
-      const text = texts.get(/** @type {string} */ (tree.get(rel))) ?? '';
+      const id = /** @type {string} */ (tree.get(rel)), text = texts.get(id) ?? '';
       scans.set(key(rel), { specs: importSpecs(text, rel), about: describeFile(rel, text) });
+      if (rel.endsWith('.java')) packages.set(id, javaPackage(text));
     }
 
-    // Resolution only depends on which files exist and on the configs, so reuse it while those stay the same.
-    const sig = createHash('sha1').update(all.join('\n')).update('\0').update(cfgs.map((rel) => `${rel}:${tree.get(rel)}`).join('\n')).digest('hex');
+    // Resolution only depends on which files exist, the configs and Java's package lines, so reuse it while those stay the same.
+    const sig = createHash('sha1').update(all.join('\n')).update('\0').update(cfgs.map((rel) => `${rel}:${tree.get(rel)}`).join('\n'))
+      .update('\0').update(sources.filter((rel) => rel.endsWith('.java')).map((rel) => packages.get(/** @type {string} */ (tree.get(rel)))).join('\n')).digest('hex');
     if (sig !== ctx.sig) ctx = { sig, resolved: new Map() };
 
     /** @type {Map<string, Set<string>>} */
@@ -188,7 +193,8 @@ export function createEngine(/** @type {string} */ root) {
       read: (abs) => {
         const rel = inside(abs);
         if (rel === null) return diskIO.read(abs);
-        const text = configs.get(tree.get(rel) ?? '');
+        const id = tree.get(rel) ?? '', pkg = rel.endsWith('.java') ? packages.get(id) : undefined;
+        const text = pkg !== undefined ? `package ${pkg};` : configs.get(id); // a .java file: only its package line is kept
         if (text === undefined) throw new Error(`${rel} is not a config in ${rev}`);
         return text;
       },

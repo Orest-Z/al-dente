@@ -98,6 +98,56 @@ test('python: src layout, relative and parenthesised imports, scripts, and the s
   } finally { done(); }
 });
 
+test('java: single, static, nested and wildcard imports, names written out in code, two modules, and the same answer from git history', () => {
+  const java = fileURLToPath(new URL('./fixtures/java', import.meta.url));
+  const r = createResolver(java), plan = readRules(java);
+  const main = 'src/main/java/com/acme/shop', at = (p) => `${main}/${p}.java`;
+  const imports = (file) => r.importsOf(file).map((i) => [i.line, i.spec, i.target]);
+  // Comments, strings and text blocks that look like imports don't count; java.util isn't in the project.
+  assert.deepEqual(imports(at('web/OrderController')), [
+    [6, 'com.acme.shop.data.Order', at('data/Order')], // a wildcard: only the classes this file uses
+    [6, 'com.acme.shop.data.OrderRepository', at('data/OrderRepository')],
+    [7, 'com.acme.shop.service.OrderService', at('service/OrderService')],
+  ]);
+  assert.deepEqual(imports(at('service/OrderService')), [
+    [3, 'com.acme.shop.shared.Money.cents', at('shared/Money')], // a static member
+    [4, 'com.acme.shop.data.OrderRepository', at('data/OrderRepository')],
+    [5, 'com.acme.shop.shared.Money.Currency', at('shared/Money')], // a nested class
+    [10, 'com.acme.shop.data.Order', at('data/Order')], // written out in full, without an import
+  ]);
+  // Two modules with a class of the same name: each file gets the one nearest to it.
+  assert.deepEqual(imports('tools/src/main/java/com/acme/shop/tools/Report.java'), [[3, 'com.acme.shop.shared.Money', 'tools/src/main/java/com/acme/shop/shared/Money.java']]);
+  assert.deepEqual(violationsIn(plan, at('web/OrderController'), r.importsOf(at('web/OrderController'))).map((v) => [v.line, v.to]), [[6, 'data'], [6, 'data']]);
+  assert.ok(isIgnored(plan, 'src/test/java/com/acme/shop/web/OrderControllerTest.java'));
+
+  const d = (rel) => describeFile(rel, fs.readFileSync(path.join(java, rel), 'utf8')).text;
+  assert.equal(d(at('web/OrderController')), 'HTTP endpoints for orders, backed by OrderService.'); // its Javadoc, not the license
+  assert.equal(d(at('data/OrderRepository')), 'Interface: all, find');
+  assert.equal(d(at('data/Status')), 'Enum: NEW, PAID, SHIPPED +1 more');
+  assert.equal(d(at('App')), 'Entry point');
+
+  const { repo, git, write, done } = tempRepo();
+  try {
+    fs.rmSync(path.join(repo, 'src'), { recursive: true });
+    fs.cpSync(java, repo, { recursive: true });
+    git('add', '.');
+    git('commit', '-qm', 'Java shop');
+    // History reads the same files from a commit (git objects, not the disk) and must agree.
+    const atHead = createEngine(repo).imports(readRules(repo), 'HEAD');
+    for (const file of [at('web/OrderController'), at('service/OrderService'), 'tools/src/main/java/com/acme/shop/tools/Report.java']) {
+      assert.deepEqual(atHead.get(file), createResolver(repo).importsOf(file), file);
+    }
+    // A folder whose files declare another package isn't that package, however near it is.
+    write(`${main}/service/x/com/acme/shop/data/Order.java`, 'package com.acme.shop.service.x.com.acme.shop.data;\npublic record Order() {}\n');
+    // Maven's build output next to a pom.xml is never read: generated code isn't a project file.
+    write('pom.xml', '<project/>\n');
+    write('target/generated-sources/annotations/com/acme/shop/data/Order_.java', 'package com.acme.shop.data;\npublic class Order_ {}\n');
+    const fresh = createResolver(repo);
+    assert.deepEqual(fresh.importsOf(at('service/OrderService')), atHead.get(at('service/OrderService')));
+    assert.deepEqual(fresh.importsOf(at('service/OrderService'), 'package com.acme.shop.service;\nimport com.acme.shop.data.Order_;\n'), []);
+  } finally { done(); }
+});
+
 test('file descriptions: top doc comment first, otherwise a summary from the code', () => {
   const d = (rel, src) => describeFile(rel, src).text;
   assert.equal(d('a.ts', "// @ts-check\nimport x from './x';\n\n/**\n * Talks to the payment API. Retries twice.\n */\n\nexport function pay() {}\n"), 'Talks to the payment API.');

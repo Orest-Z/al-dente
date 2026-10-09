@@ -71,9 +71,16 @@ function derive() {
       if (!list.some((x) => x.file === rel)) list.push({ file: rel, line: i.line });
     }
   }
-  for (const list of byPart.values()) list.sort();
+  const shared = new Map(); // the folders every file name of a part starts with, like "org/acme/shop/"
+  for (const [id, list] of byPart) {
+    list.sort();
+    const names = list.map((rel) => baseName(id, rel));
+    let pre = names[0].slice(0, names[0].lastIndexOf('/') + 1);
+    for (const n of names) while (pre && !n.startsWith(pre)) pre = pre.slice(0, pre.lastIndexOf('/', pre.length - 2) + 1);
+    shared.set(id, pre);
+  }
   byPart.set(UNMAPPED, S.unmapped ?? []); // the box lists only unclaimed files that touch a part
-  return (derived = { S, byPart, importers, edges: new Map() });
+  return (derived = { S, byPart, importers, shared, edges: new Map() });
 }
 const filesOf = (id) => derive().byPart.get(id) ?? [];
 const importersOf = (rel) => derive().importers.get(rel) ?? [];
@@ -97,14 +104,23 @@ function partById(id) {
 }
 const countOf = (id) => partById(id)?.fileCount ?? filesOf(id).length;
 
-/** "apps/web/src/ui/Button.tsx" in part "apps/web/src" -> "ui/Button.tsx". */
-function relName(id, rel) {
+/** "apps/web/src/ui/Button.tsx" in part "apps/web/src" -> "ui/Button.tsx"; a Java file also drops its source folder (src/main/java/). */
+function baseName(id, rel) {
   const paths = partById(id)?.paths ?? [];
   const base = paths.filter((p) => rel.startsWith(p + '/')).sort((a, b) => b.length - a.length)[0];
-  if (!base) return rel;
   // A part made of several folders keeps the folder's name, so users/models.py and files/models.py stay apart.
-  return paths.length > 1 ? rel.slice(base.lastIndexOf('/') + 1) : rel.slice(base.length + 1);
+  const name = !base ? rel : paths.length > 1 ? rel.slice(base.lastIndexOf('/') + 1) : rel.slice(base.length + 1);
+  return rel.endsWith('.java') ? name.replace(/^(?:[^/]+\/)*?src\/[^/]+\/java\//, '') : name;
 }
+
+/** A file's name in its part: two or more folders that all its files start with say nothing (a Java module's org/acme/), so they go. */
+function relName(id, rel) {
+  const name = baseName(id, rel), pre = derive().shared.get(id) ?? '';
+  return pre.split('/').length > 2 && name.startsWith(pre) ? name.slice(pre.length) : name;
+}
+
+/** "src/main/java/org/acme/shop/web" -> "…/shop/web/": the end of a long path is the part that tells parts apart. */
+const pathLabel = (/** @type {string} */ p) => (p.length > 28 ? `…/${p.split('/').slice(-2).join('/')}` : p) + (/\.\w+$/.test(p) ? '' : '/');
 
 // ------------------------------------------------------------------ layout
 
@@ -429,7 +445,7 @@ function drawNodes() {
       <button type="button" class="n-main" aria-label="${esc(`${p.label}: ${plural(count, 'file')}${p.violations ? `, ${plural(p.violations, 'rule break')}` : ''}`)}">
         <span class="n-title">${esc(p.label)}</span>
         <span class="n-desc">${esc(p.description)}</span>
-        <span class="n-path">${esc(p.paths.map((x) => `${x}/`).join('  ') || 'not in al-dente.json')}</span>
+        <span class="n-path" title="${esc(p.paths.join('\n'))}">${esc(p.paths.map(pathLabel).join('  ') || 'not in al-dente.json')}</span>
       </button>
       <button type="button" class="n-toggle" data-toggle aria-expanded="${open}" title="${open ? 'Hide' : 'Show'} the files in ${esc(p.label)}">${plural(count, 'file')}${chevron}</button>
       ${open ? `<ul class="n-files">${list.slice(0, MAX_ROWS).map((rel) => fileRow(id, rel)).join('')}</ul>` : ''}
@@ -615,7 +631,7 @@ function fileDetails(rel) {
   for (const i of imps) { const k = i.to ?? UNMAPPED; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(i); }
   const inside = groups.get(part);
   groups.delete(part);
-  const impRow = (i) => `<li><button type="button" class="row" ${S.files?.[i.target] ? `data-file="${esc(i.target)}"` : 'disabled'}>${breaks(f.part, i.to) ? '<span class="x">✗</span>' : ''}<code class="grow" title="${esc(`"${i.spec}" → ${i.target}`)}">${esc(i.target)}</code><span class="meta">line ${i.line}</span></button></li>`;
+  const impRow = (i) => `<li><button type="button" class="row" ${S.files?.[i.target] ? `data-file="${esc(i.target)}"` : 'disabled'}>${breaks(f.part, i.to) ? '<span class="x">✗</span>' : ''}<code class="grow" title="${esc(`"${i.spec}" → ${i.target}`)}">${esc(relName(i.to ?? UNMAPPED, i.target))}</code><span class="meta">line ${i.line}</span></button></li>`;
   const group = (pid, list, title) => `<div class="grp"><div class="grp-h" style="--part:${colorOf(pid)}"><span class="swatch"></span>${title}</div><ul class="rows">${list.map(impRow).join('')}</ul></div>`;
   const users = importersOf(rel);
   const ch = hist?.changes?.get(rel);
@@ -624,7 +640,7 @@ function fileDetails(rel) {
     <div class="d-title" style="--part:${colorOf(part)}"><span class="swatch"></span><h2>${esc(rel.slice(cut))}</h2>${closeBtn}</div>
     <code class="d-path">${esc(rel)}</code>
     <p class="about">${md(about?.text ?? 'Not a source file al-dente reads.')}</p>
-    ${about?.from === 'code' ? '<p class="hint">Summarised from the code. A doc comment at the top of the file replaces this with your own words.</p>' : ''}
+    ${about?.from === 'code' ? `<p class="hint">Summarised from the code. ${rel.endsWith('.java') ? 'A Javadoc comment on its class' : rel.endsWith('.py') ? 'A docstring at the top of the file' : 'A doc comment at the top of the file'} replaces this with your own words.</p>` : ''}
     <div class="chips">${partChip(part, 'part')}</div>
     ${part === UNMAPPED ? '<p>No part claims this file, so its imports aren\'t checked.</p>'
       : bad.length ? `<span class="verdict bad"><i>✗</i> ${breaking(bad.length)}</span>` : '<span class="verdict good"><i>✓</i> Fits the plan</span>'}
@@ -637,7 +653,7 @@ function fileDetails(rel) {
       : '<p>Imports nothing from this project.</p>'}
     <h3>Imported by${users.length ? ` · ${users.length}` : ''}</h3>
     ${users.length
-      ? `<ul class="rows">${users.map((u) => `<li><button type="button" class="row" data-file="${esc(u.file)}">${breaks(S.files[u.file]?.part, f?.part) ? '<span class="x">✗</span>' : `<span class="dot" style="--part:${colorOf(partOfFile(u.file))}"></span>`}<code class="grow">${esc(u.file)}</code><span class="meta">line ${u.line}</span></button></li>`).join('')}</ul>`
+      ? `<ul class="rows">${users.map((u) => `<li><button type="button" class="row" data-file="${esc(u.file)}">${breaks(S.files[u.file]?.part, f?.part) ? '<span class="x">✗</span>' : `<span class="dot" style="--part:${colorOf(partOfFile(u.file))}"></span>`}<code class="grow" title="${esc(u.file)}">${esc(relName(partOfFile(u.file), u.file))}</code><span class="meta">line ${u.line}</span></button></li>`).join('')}</ul>`
       : '<p>No file in this project imports it.</p>'}`;
 }
 

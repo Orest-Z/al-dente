@@ -1,0 +1,9 @@
+{
+  "parts": {
+    "web": { "label": "Web", "paths": ["src/main/java/com/acme/shop/web"], "uses": ["service", "shared"] },
+    "service": { "label": "Service", "paths": ["src/main/java/com/acme/shop/service"], "uses": ["data", "shared"] },
+    "data": { "label": "Data", "paths": ["src/main/java/com/acme/shop/data"], "uses": ["shared"] },
+    "shared": { "label": "Shared", "paths": ["src/main/java/com/acme/shop/shared"], "uses": [] },
+    "tools": { "label": "Tools", "paths": ["tools"], "uses": [] }
+  }
+}

@@ -12,6 +12,7 @@
   <a href="#what-it-understands"><img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="#what-it-understands"><img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript"></a>
   <a href="#what-it-understands"><img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python"></a>
+  <a href="#what-it-understands"><img src="https://img.shields.io/badge/Java-ED8B00?logo=openjdk&logoColor=white" alt="Java"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/dependencies-0-2FBF5B" alt="Zero dependencies"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-555" alt="MIT license"></a>
 </p>
@@ -50,7 +51,7 @@ On the map, open any part to see its files, each with a one-line description (fr
 
 | | Works today | Coming next |
 |---|---|---|
-| **Languages** | <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript"> <img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript"> <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python"> | <img src="https://img.shields.io/badge/Java-planned-555?logo=openjdk&logoColor=white" alt="Java (planned)"> <img src="https://img.shields.io/badge/C%23_%2F_.NET-planned-555?logo=dotnet&logoColor=white" alt="C# / .NET (planned)"> <img src="https://img.shields.io/badge/Go-later-555?logo=go&logoColor=white" alt="Go (later)"> |
+| **Languages** | <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript"> <img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript"> <img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python"> <img src="https://img.shields.io/badge/Java-ED8B00?logo=openjdk&logoColor=white" alt="Java"> | <img src="https://img.shields.io/badge/Kotlin-planned-555?logo=kotlin&logoColor=white" alt="Kotlin (planned)"> <img src="https://img.shields.io/badge/C%23_%2F_.NET-planned-555?logo=dotnet&logoColor=white" alt="C# / .NET (planned)"> <img src="https://img.shields.io/badge/Go-later-555?logo=go&logoColor=white" alt="Go (later)"> |
 | **Coding agents** | <img src="https://img.shields.io/badge/Claude_Code-D97757?logo=claude&logoColor=white" alt="Claude Code"> | <img src="https://img.shields.io/badge/Cursor-planned-555?logo=cursor&logoColor=white" alt="Cursor (planned)"> <img src="https://img.shields.io/badge/Codex_CLI-planned-555" alt="Codex CLI (planned)"> <img src="https://img.shields.io/badge/Gemini_CLI-planned-555?logo=googlegemini&logoColor=white" alt="Gemini CLI (planned)"> |
 | **Pull requests** | <img src="https://img.shields.io/badge/GitHub_Actions-2088FF?logo=githubactions&logoColor=white" alt="GitHub Actions"> | |
 
@@ -115,9 +116,9 @@ The comment shows the parts as a diagram (new connections thick, breaks red), th
 }
 ```
 
-A file belongs to the part with the longest matching path. Imports inside a part are always fine; imports into another part must be listed in `uses`.
+A file belongs to the part with the longest matching path. Imports inside a part are always fine; imports into another part must be listed in `uses`. In Java, a path is a package folder (`src/main/java/com/acme/shop/web`) or a whole Maven or Gradle module (`billing`).
 
-Tests, stories and migrations aren't architecture, so they may import anything. To choose yourself, add an `ignore` list of globs (the default is `["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/__mocks__/**", "**/test/**", "**/tests/**", "**/e2e/**", "**/*.stories.*", "**/test_*.py", "**/*_test.py", "**/conftest.py", "**/migrations/*.py", "**/alembic/versions/*.py"]`; `[]` checks everything). Files your `.gitignore` excludes, like generated code, are skipped too.
+Tests, stories and migrations aren't architecture, so they may import anything. To choose yourself, add an `ignore` list of globs (the default is `["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/__mocks__/**", "**/test/**", "**/tests/**", "**/e2e/**", "**/*.stories.*", "**/test_*.py", "**/*_test.py", "**/conftest.py", "**/migrations/*.py", "**/alembic/versions/*.py", "**/src/androidTest/**", "**/src/integrationTest/**", "**/src/testFixtures/**"]`; `[]` checks everything). Files your `.gitignore` excludes, like generated code, are skipped too.
 
 ## What it understands
 
@@ -133,11 +134,17 @@ Python imports resolve the way Python's import system would, from the file layou
 - packages and modules under the project root, `src/` layouts (with or without `__init__.py`), monorepos with several packages, and plain script folders
 - the standard library and installed packages are skipped; tested on Django, Flask, LangChain, FastAPI's full-stack template and nanoGPT (about 40,000 imports, no wrong matches)
 
+Java imports resolve from the file layout and each folder's `package` line (no JDK, Maven or Gradle needed):
+
+- `import a.b.C`, static imports, nested classes, `import a.b.*` (only the classes the file really uses from that package count), and class names written out in full in the code, like `new com.acme.data.Order()`
+- Maven and Gradle layouts (`src/main/java`), Android apps, multi-module builds (when two modules have a class with the same name, the nearer one wins) and plain `src/` folders; Maven's `target/` output is skipped
+- the JDK and libraries are skipped; tested on Spring Petclinic, JHipster's sample app, NewPipe, JUnit 5, Guava and Kafka (about 75,000 project imports, no wrong matches)
+
 Nothing leaves your machine: the map is a local server bound to `127.0.0.1`. It's built for real repos: on a 5,000-file project a save sends the browser a few KB, the hook never waits for the map, and history is analysed in a background thread.
 
 ## Status
 
-Early, and moving fast: TypeScript, JavaScript and Python projects in Claude Code today; see [Supported](#supported) for what's next. Issues and ideas are welcome.
+Early, and moving fast: TypeScript, JavaScript, Python and Java projects in Claude Code today; see [Supported](#supported) for what's next. Issues and ideas are welcome.
 
 Try it on the bundled example:
 
