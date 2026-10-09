@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { buildGraph, createResolver, describeFile, diskImports, isIgnored, listSources, readRules, scanImports, violationsIn } from '../src/core.js';
 import { diffArchitecture, toMarkdown } from '../src/diff.js';
 import { createEngine, createHistory } from '../src/history.js';
+import { survey, surveyText } from '../src/survey.js';
 
 const root = fileURLToPath(new URL('../examples/shop', import.meta.url));
 const rules = readRules(root);
@@ -193,6 +194,18 @@ test('a part importing a file no part claims breaks the plan (no slipping past t
     assert.equal(hook('src/ui/list.ts').code, 0, 'generated code git ignores');
     assert.equal(hook('src/helpers/bridge.ts').code, 0, 'files outside every part may use parts');
   } finally { done(); }
+});
+
+test('survey: folders grouped to a readable size (one-way chains passed through) and the imports between them', () => {
+  const s = survey(fileURLToPath(new URL('./fixtures/java', import.meta.url)));
+  const shop = 'src/main/java/com/acme/shop';
+  assert.deepEqual(s.groups.map((g) => [g.path, g.files]),
+    [[`${shop}/App.java`, 1], [`${shop}/data`, 3], [`${shop}/service`, 1], [`${shop}/shared`, 1], [`${shop}/web`, 1], ['tools', 2]]);
+  assert.deepEqual(s.edges.map((e) => [e.from, e.to, e.count]), [[0, 4, 1], [2, 1, 2], [2, 3, 1], [4, 1, 2], [4, 2, 1]]);
+  const text = surveyText(survey(root)); // the TypeScript shop: the shared start of the paths is said once
+  assert.match(text, /^Folders \(paths below src\/\): files, most connected files$/m);
+  assert.match(text, /^ {2}4\. screens +1 {2}HomeScreen\.tsx$/m);
+  assert.match(text, /^ {2}4 → 1: 1, 3: 1$/m);
 });
 
 /** A throwaway repo: ui may use shared, nothing may use data. */
