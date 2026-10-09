@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/057760bb-f509-4e1a-9b0c-65433329d516
 
 ## How it works
 
-1. **Decide.** Ask Claude to *"design the architecture for this app with al dente"*. It asks what matters most to you (lightweight, polished UI, shipping fast…) and proposes 2–3 options in plain words, each with a tech stack fitted to that, you pick one, and the plan is saved to `al-dente.json`. From then on, every Claude session starts knowing the plan, so it imports the right way the first time.
+1. **Decide.** Ask Claude to *"design the architecture for this app with al dente"*. It asks what matters most to you (lightweight, polished UI, shipping fast…) and proposes 2–3 options in plain words, each with a tech stack fitted to that, you pick one, and the plan is saved to `al-dente.json`. For code you already have, ask it to *"map this project with al dente"*: it surveys the folders and the imports between them in one step, then proposes parts that match how the code really connects. From then on, every Claude session starts knowing the plan, so it imports the right way the first time.
 2. **Watch.** Open the live map. Every edit lights up the part being changed, the arrows it touches, and the parts that might be affected.
 3. **Guard.** If an edit breaks the plan (say, a UI component importing the database directly), the arrow turns red and Claude gets told right away, with the file and line, so it fixes the code itself. Only *new* breaks block: debt that's already committed never pushes Claude into refactoring files it merely touched.
 4. **Review.** Every pull request gets a comment showing what it does to the architecture: a map of the parts, new or removed connections, and any rule break it adds, linked to the line. It fails only on breaks the PR adds, so you can turn it on in a repo that already has debt.
@@ -71,6 +71,7 @@ Then, in your project, ask Claude to design or map the architecture, and to open
 ```bash
 npx al-dente            # open the live map (http://localhost:4747)
 npx al-dente check      # check every file once, exit 1 on rule breaks
+npx al-dente survey     # an existing project's folders and the imports between them (how Claude maps it into parts)
 npx al-dente diff main  # what this branch does to the architecture (Markdown); exit 1 only on breaks it adds
 ```
 
@@ -117,6 +118,8 @@ The comment shows the parts as a diagram (new connections thick, breaks red), th
 ```
 
 A file belongs to the part with the longest matching path. Imports inside a part are always fine; imports into another part must be listed in `uses`. In Java, a path is a package folder (`src/main/java/com/acme/shop/web`) or a whole Maven or Gradle module (`billing`).
+
+A part may not import files that no part claims either, so code can't slip past the rules through a helper outside the plan. Files outside every part, like entry points and scripts, may import any part, and generated code your `.gitignore` excludes doesn't count.
 
 Tests, stories and migrations aren't architecture, so they may import anything. To choose yourself, add an `ignore` list of globs (the default is `["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "**/__mocks__/**", "**/test/**", "**/tests/**", "**/e2e/**", "**/*.stories.*", "**/test_*.py", "**/*_test.py", "**/conftest.py", "**/migrations/*.py", "**/alembic/versions/*.py", "**/src/androidTest/**", "**/src/integrationTest/**", "**/src/testFixtures/**"]`; `[]` checks everything). Files your `.gitignore` excludes, like generated code, are skipped too.
 

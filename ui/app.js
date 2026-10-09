@@ -55,7 +55,8 @@ const labelOf = (id) => (id === UNMAPPED || !id ? 'Unmapped' : S?.parts.find((p)
 const colorOf = (id) => { const i = S?.parts.findIndex((p) => p.id === id) ?? -1; return i >= 0 && i < 8 ? `var(--series-${i + 1})` : 'var(--muted)'; };
 const partOfFile = (rel, hint) => S.files?.[rel]?.part ?? hint ?? UNMAPPED;
 /** Does an import from part `from` into part `to` break the plan? */
-const breaks = (from, to) => !!from && !!to && from !== UNMAPPED && to !== UNMAPPED && from !== to && !S.parts.find((p) => p.id === from)?.uses.includes(to);
+// A part may use the parts the plan lists, and never files no part claims (that would slip past the rules).
+const breaks = (from, to) => !!from && from !== UNMAPPED && from !== to && (!to || to === UNMAPPED || !S.parts.find((p) => p.id === from)?.uses.includes(to));
 
 /** Lookups built once per graph: each part's files, who imports each file, and (lazily) the imports behind each edge. */
 function derive() {
@@ -579,7 +580,7 @@ function overview() {
     <h3>Parts · ${S.parts.length}</h3>
     <ul class="rows">${parts}</ul>
     ${unmapped.length ? `<h3>Not in any part · ${unmapped.length}</h3>
-      <p>These files talk to your parts, but no part claims them, so they aren't checked. Add their folders to <code>al-dente.json</code>.</p>
+      <p>No part claims these files. They may import your parts, but your parts may not import them: that would slip past the rules. Add their folders to a part in <code>al-dente.json</code>.</p>
       <ul class="rows">${unmapped.slice(0, 6).map((rel) => `<li><button type="button" class="row" ${S.files?.[rel] ? `data-file="${esc(rel)}"` : 'disabled'}><code class="grow">${esc(rel)}</code></button></li>`).join('')}</ul>
       ${unmapped.length > 6 ? `<p>and ${unmapped.length - 6} more</p>` : ''}` : ''}
     <details class="help"${helpSeen ? '' : ' open'}><summary>How to read the map</summary>
