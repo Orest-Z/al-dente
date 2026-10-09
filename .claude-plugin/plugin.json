@@ -6,5 +6,5 @@
   "homepage": "https://orest-z.github.io/al-dente/",
   "repository": "https://github.com/Orest-Z/al-dente",
   "license": "MIT",
-  "keywords": ["architecture", "hooks", "guardrails", "dependency-rules", "live-map", "typescript", "python"]
+  "keywords": ["architecture", "hooks", "guardrails", "dependency-rules", "live-map", "typescript", "python", "java"]
 }
