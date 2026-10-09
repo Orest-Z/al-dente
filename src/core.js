@@ -2,21 +2,23 @@
 // Copyright (c) 2026 Orest Zogju. Part of al dente: https://github.com/Orest-Z/al-dente
 // SPDX-License-Identifier: MIT
 // Core of al-dente: read the architecture rules, resolve each file's imports
-// (no dependencies, any TypeScript version; Python in python.js), and turn them into a part-level graph.
+// (no dependencies, any TypeScript version; Python in python.js, Java in java.js), and turn them into a part-level graph.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { createJavaResolver, describeJava, javaSpecs } from './java.js';
 import { createPythonResolver, describePython, pythonSpecs } from './python.js';
 
 export const RULES_FILE = 'al-dente.json';
 export const UNMAPPED = '~unmapped';
-const SOURCE = /\.(?:[cm]?[jt]sx?|py)$/;
+const SOURCE = /\.(?:[cm]?[jt]sx?|py|java)$/;
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage', '__pycache__', 'venv', 'site-packages']);
 /** Not architecture: tests, stories and migrations may import anything. A plan can override this with its own "ignore" list. */
 export const DEFAULT_IGNORE = [
   '**/*.test.*', '**/*.spec.*', '**/__tests__/**', '**/__mocks__/**', '**/test/**', '**/tests/**', '**/e2e/**', '**/*.stories.*',
   '**/test_*.py', '**/*_test.py', '**/conftest.py', '**/migrations/*.py', '**/alembic/versions/*.py', // migrations are generated snapshots
+  '**/src/androidTest/**', '**/src/integrationTest/**', '**/src/testFixtures/**', // Java's src/test/ is covered by test/ above
 ];
 
 /** Project-relative path with forward slashes, e.g. "src/ui/Button.tsx". */
@@ -175,11 +177,15 @@ export function scanImports(/** @type {string} */ src) {
   return found.sort((a, b) => a.pos - b.pos);
 }
 
-/** @typedef {{ spec: string, line: number, alt?: string }} Spec alt: where Python's `from m import x` lands when x isn't a submodule */
+/**
+ * @typedef {{ spec: string, line: number, alt?: string, names?: string[] }} Spec
+ * alt: where Python's `from m import x` lands when x isn't a submodule; names: the types a Java file uses, for `import a.b.*`
+ */
 
 /** Specifiers with their line numbers: the part of a file's analysis that only depends on its text, so it can be cached. */
 export function importSpecs(/** @type {string} */ src, /** @type {string} */ rel = '') {
   if (rel.endsWith('.py')) return pythonSpecs(src);
+  if (rel.endsWith('.java')) return javaSpecs(src);
   /** @type {Spec[]} */
   const out = [];
   let line = 1, at = 0;
@@ -355,6 +361,7 @@ export function createResolver(/** @type {string} */ root, /** @type {SourceIO} 
   };
 
   const python = createPythonResolver(root, io);
+  const java = createJavaResolver(root, io);
 
   const resolve = (/** @type {string} */ spec, /** @type {string} */ fromDir) => {
     if (spec.startsWith('.')) return resolveFile(path.resolve(fromDir, spec));
@@ -380,7 +387,7 @@ export function createResolver(/** @type {string} */ root, /** @type {SourceIO} 
 
   return {
     /** Forget cached lookups (call after files are created or deleted, or configs change). */
-    reset: () => { isFileCache.clear(); configCache.clear(); python.reset(); },
+    reset: () => { isFileCache.clear(); configCache.clear(); python.reset(); java.reset(); },
     /** Imports of one file that point at other files in this project. Pass `text` to check unsaved content. */
     importsOf(/** @type {string} */ rel, /** @type {string=} */ text) {
       return this.resolveAll(rel, importSpecs(text ?? io.read(path.join(root, rel)), rel));
@@ -400,6 +407,10 @@ export function createResolver(/** @type {string} */ root, /** @type {SourceIO} 
           seen.add(key);
           out.push({ spec: hit.spec, target, line: s.line });
         }
+        return out;
+      }
+      if (rel.endsWith('.java')) {
+        for (const s of specs) for (const hit of java.resolve(s, rel)) if (hit.target !== rel) out.push({ spec: hit.spec, target: hit.target, line: s.line });
         return out;
       }
       for (const { spec, line } of specs) {
@@ -440,6 +451,7 @@ export function firstSentence(/** @type {string} */ raw) {
  */
 export function describeFile(/** @type {string} */ rel, /** @type {string} */ src) {
   if (rel.endsWith('.py')) return describePython(rel, src);
+  if (rel.endsWith('.java')) return describeJava(rel, src);
   /** @type {{ start: number, end: number }[]} */
   const comments = [];
   const code = stripComments(src, comments);
