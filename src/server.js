@@ -9,7 +9,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  RULES_FILE, buildGraph, createResolver, describeFile, fileEntry, importDelta, importSpecs, isGitIgnored, isIgnored,
+  RULES_FILE, buildGraph, createResolver, describeFile, fileEntry, gitIgnoredOf, importDelta, importSpecs, isGitIgnored, isIgnored,
   isResolverConfig, isSource, listSources, partOf, readRules, skippedDir, toRel,
 } from './core.js';
 import { createHistory } from './history.js';
@@ -104,10 +104,24 @@ export function startServer({ root, port }) {
     } catch { files.delete(rel); return null; } // deleted or unreadable mid-write
   }
 
+  /** @type {Map<string, boolean>} import targets that aren't listed sources: does git ignore them (generated code)? */
+  const outside = new Map();
+  /** Resolve these files' imports, minus files git ignores: they aren't the project's (git is asked once per new target). */
+  function resolveFiles(/** @type {string[]} */ rels) {
+    for (const rel of rels) { const f = files.get(rel); if (f) f.imports = resolver.resolveAll(rel, f.specs); }
+    const unknown = rels.flatMap((rel) => files.get(rel)?.imports ?? []).map((i) => i.target).filter((t) => !files.has(t) && !outside.has(t));
+    const ignored = gitIgnoredOf(root, unknown);
+    for (const t of unknown) outside.set(t, ignored.has(t));
+    for (const rel of rels) {
+      const f = files.get(rel);
+      if (f?.imports.some((i) => outside.get(i.target))) f.imports = f.imports.filter((i) => !outside.get(i.target));
+    }
+  }
+
   /** Resolve every file again (cheap: the scans are cached). Needed when files appear or vanish, or configs change. */
   function resolveAll() {
     resolver.reset();
-    for (const [rel, f] of files) f.imports = resolver.resolveAll(rel, f.specs);
+    resolveFiles([...files.keys()]);
   }
 
   function scanAll() {
@@ -186,6 +200,7 @@ export function startServer({ root, port }) {
     }
     if (path.posix.basename(rel) === '.gitignore') {
       gitIgnored.clear();
+      outside.clear();
       scanAll();
       return publish(null, null);
     }
@@ -203,10 +218,8 @@ export function startServer({ root, port }) {
     const before = prev?.imports ?? [];
     if (kind === 'deleted') files.delete(rel);
     else read(rel);
-    if (kind === 'changed') {
-      const f = files.get(rel);
-      if (f) f.imports = resolver.resolveAll(rel, f.specs);
-    } else resolveAll(); // a file appeared or vanished: other files' imports may now resolve differently
+    if (kind === 'changed') resolveFiles([rel]);
+    else resolveAll(); // a file appeared or vanished: other files' imports may now resolve differently
     const after = files.get(rel)?.imports ?? [];
     publish(rules ? describe(rel, actor, tool, kind, before, after, importers) : null, kind === 'changed' ? [rel] : null);
   }

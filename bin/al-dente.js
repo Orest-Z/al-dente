@@ -62,7 +62,7 @@ async function check() {
   const { RULES_FILE, diskImports, readRules, violationsIn } = await import('../src/core.js');
   const rules = readRules(root);
   if (!rules) throw new Error(`no ${RULES_FILE} in ${root}. Ask your agent to design the architecture first.`);
-  const label = (id) => rules.byId.get(id).label;
+  const label = (id) => rules.byId.get(id)?.label ?? 'no part'; // files no part claims
   const files = diskImports(root, rules);
   const broken = [...files].flatMap(([rel, imports]) => violationsIn(rules, rel, imports).map((v) => ({ rel, ...v })));
 
