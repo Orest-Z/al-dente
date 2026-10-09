@@ -35,7 +35,7 @@ const pinged = fetch(`http://127.0.0.1:${process.env.AL_DENTE_PORT || 4747}/api/
 }).catch(() => {}); // map not running: the guard below still works
 
 try {
-  const { RULES_FILE, createResolver, isIgnored, isSource, readRules, toRel, violationsIn } = await import('./core.js');
+  const { RULES_FILE, UNMAPPED, createResolver, gitIgnoredOf, isIgnored, isSource, readRules, toRel, violationsIn } = await import('./core.js');
   const rel = toRel(root, file);
   // Messages name files as seen from the project folder, so a monorepo's apps/web/... is unambiguous.
   const shown = toRel(project, file), plan = toRel(project, path.join(root, RULES_FILE));
@@ -52,6 +52,9 @@ try {
 
   const resolver = createResolver(root);
   let broken = violationsIn(rules, rel, resolver.importsOf(rel));
+  // A file no part claims counts only if it's the project's: generated code git ignores isn't (one git call, rarely needed).
+  const generated = gitIgnoredOf(root, broken.filter((v) => v.to === UNMAPPED).map((v) => v.target));
+  broken = broken.filter((v) => !generated.has(v.target));
   if (broken.length) {
     // Only breaks this edit introduced count: compare with the file as committed (none if it's new or there's no git).
     const { execFileSync } = await import('node:child_process');
@@ -70,10 +73,25 @@ try {
   const label = (id) => rules.byId.get(id).label;
   const from = rules.byId.get(broken[0].from);
   const may = from.uses.map(label).join(', ') || 'nothing outside itself';
+  // The shortest allowed way through the plan to each part it reached for, so the fix is one step instead of a search.
+  const prev = new Map([[from.id, '']]);
+  for (const queue = [from.id]; queue.length;) {
+    const id = queue.shift();
+    for (const next of rules.byId.get(id).uses) if (!prev.has(next)) { prev.set(next, id); queue.push(next); }
+  }
+  const fix = (to) => {
+    if (to === UNMAPPED) return `move the files no part claims into a part ${from.label} may use (${may}), or ask the user to add their folders to a part in ${plan}`;
+    if (!prev.has(to)) return `nothing ${from.label} may use leads to ${label(to)}: move this code into a part that may use ${label(to)}, or have such a part pass in what ${from.label} needs`;
+    const way = [];
+    for (let id = to; id; id = prev.get(id)) way.unshift(label(id));
+    return `reach ${label(to)} through ${way.slice(1, -1).join(', then ')} (${way.join(' → ')})`;
+  };
   console.error([
     `al-dente: ${shown} breaks the architecture agreed in ${plan}.`,
-    ...broken.map((v) => `  line ${v.line}: imports "${v.spec}" from ${label(v.to)}, but ${from.label} may only use: ${may}.`),
-    `Restructure the code so this goes through a part ${from.label} is allowed to use.`,
+    ...broken.map((v) => (v.to === UNMAPPED
+      ? `  line ${v.line}: imports "${v.spec}" (${toRel(project, path.join(root, v.target))}), which no part claims, so ${from.label} may not rely on it.`
+      : `  line ${v.line}: imports "${v.spec}" from ${label(v.to)}, but ${from.label} may only use: ${may}.`)),
+    ...[...new Set(broken.map((v) => v.to))].map((to) => `To fix: ${fix(to)}.`),
     `Only change ${plan} if the user explicitly agrees to this new dependency.`,
   ].join('\n'));
   process.exit(2);

@@ -58,9 +58,9 @@ export function listSources(/** @type {string} */ root) {
 }
 
 /** NUL-separated paths from a git command run in `root`, or null when git or the repo isn't there. */
-function gitFiles(/** @type {string} */ root, /** @type {string[]} */ args) {
+function gitFiles(/** @type {string} */ root, /** @type {string[]} */ args, /** @type {string=} */ input) {
   try {
-    return execFileSync('git', ['-C', root, ...args], { stdio: ['ignore', 'pipe', 'ignore'], maxBuffer: 1 << 28, windowsHide: true })
+    return execFileSync('git', ['-C', root, ...args], { input, stdio: ['pipe', 'pipe', 'ignore'], maxBuffer: 1 << 28, windowsHide: true })
       .toString('utf8').split('\0').filter(Boolean);
   } catch { return null; }
 }
@@ -68,6 +68,12 @@ function gitFiles(/** @type {string} */ root, /** @type {string[]} */ args) {
 /** Is this file ignored by git (e.g. generated code)? False when there's no git. */
 export const isGitIgnored = (/** @type {string} */ root, /** @type {string} */ rel) =>
   (gitFiles(root, ['check-ignore', '--', rel])?.length ?? 0) > 0; // prints the path and exits 0 only when ignored
+
+/** Which of these files git ignores (generated code, build output), in one git call. Empty without git. */
+export const gitIgnoredOf = (/** @type {string} */ root, /** @type {Iterable<string>} */ rels) => {
+  const list = [...new Set(rels)];
+  return new Set(list.length ? gitFiles(root, ['check-ignore', '-z', '--stdin'], list.join('\0')) ?? [] : []); // exits 1 when none is
+};
 
 // ---------------------------------------------------------------- rules
 
@@ -533,18 +539,28 @@ export function describeFile(/** @type {string} */ rel, /** @type {string} */ sr
 /** Every checked source file on disk with its resolved imports (one full scan; the live server keeps its own cache). */
 export function diskImports(/** @type {string} */ root, /** @type {Rules} */ rules) {
   const resolver = createResolver(root);
-  return new Map(listSources(root).filter((rel) => !isIgnored(rules, rel)).flatMap((rel) => {
+  /** @type {Map<string, Import[]>} */
+  const files = new Map(listSources(root).filter((rel) => !isIgnored(rules, rel)).flatMap((rel) => {
     try { return [[rel, resolver.importsOf(rel)]]; } catch { return []; } // deleted since the last commit
   }));
+  // Files git ignores (generated code) aren't the project's, so importing them isn't reaching outside the plan.
+  const ignored = gitIgnoredOf(root, [...files.values()].flat().map((i) => i.target).filter((t) => !files.has(t) && !partOf(rules, t) && !isIgnored(rules, t)));
+  if (ignored.size) for (const [rel, imps] of files) files.set(rel, imps.filter((i) => !ignored.has(i.target)));
+  return files;
 }
 
-/** Imports in `rel` that cross into a part its own part is not allowed to use. */
+/**
+ * Imports in `rel` that break the plan: into a part its own part may not use, or into a project file no part claims
+ * (`to` is UNMAPPED), which would let code slip past the rules through a helper outside every part.
+ * Files outside every part may import any part (scripts, entry points); tests and other ignored files are never judged.
+ */
 export function violationsIn(/** @type {Rules} */ rules, /** @type {string} */ rel, /** @type {Import[]} */ imports) {
   const from = partOf(rules, rel);
   if (!from || isIgnored(rules, rel)) return [];
   return imports.flatMap((imp) => {
-    const to = partOf(rules, imp.target);
-    return to && to !== from && !allowed(rules, from, to) ? [{ ...imp, from, to }] : [];
+    if (isIgnored(rules, imp.target)) return [];
+    const to = partOf(rules, imp.target) ?? UNMAPPED;
+    return to !== from && (to === UNMAPPED || !allowed(rules, from, to)) ? [{ ...imp, from, to }] : [];
   });
 }
 
@@ -579,7 +595,8 @@ export const fileEntry = (/** @type {Rules} */ rules, /** @type {string} */ rel,
 
 /**
  * Aggregate file imports into part-to-part edges.
- * kind: "allowed" (follows the rules), "violation" (breaks them), "unchecked" (touches files no part claims).
+ * kind: "allowed" (follows the rules), "violation" (breaks them, including a part importing files no part claims),
+ * "unchecked" (files no part claims importing parts: scripts, entry points).
  * The edges carry counts only; which files and lines make them up is in the file index (`index: true`),
  * which the live server sends once and then patches, so a save never re-sends the whole repo.
  */
@@ -611,7 +628,7 @@ export function buildGraph(
       const key = `${a}>${b}`;
       let edge = edges.get(key);
       if (!edge) {
-        const kind = !from || !to ? 'unchecked' : allowed(rules, a, b) ? 'allowed' : 'violation';
+        const kind = !from ? 'unchecked' : to && allowed(rules, a, b) ? 'allowed' : 'violation'; // a part using unclaimed files breaks the plan
         edges.set(key, (edge = { from: a, to: b, kind, count: 0 }));
       }
       edge.count++;

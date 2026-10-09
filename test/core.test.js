@@ -5,9 +5,10 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { buildGraph, createResolver, describeFile, isIgnored, listSources, readRules, scanImports, violationsIn } from '../src/core.js';
+import { buildGraph, createResolver, describeFile, diskImports, isIgnored, listSources, readRules, scanImports, violationsIn } from '../src/core.js';
 import { diffArchitecture, toMarkdown } from '../src/diff.js';
 import { createEngine, createHistory } from '../src/history.js';
+import { survey, surveyText } from '../src/survey.js';
 
 const root = fileURLToPath(new URL('../examples/shop', import.meta.url));
 const rules = readRules(root);
@@ -167,6 +168,49 @@ test('ignore: tests are left out of the architecture by default, and a plan can 
   const crossing = resolver.importsOf('src/components/ProductCard.tsx', "import { cartStore } from '@/data/cartStore';\n");
   assert.equal(violationsIn(rules, 'src/components/ProductCard.test.tsx', crossing).length, 0);
   assert.equal(violationsIn(rules, 'src/components/ProductCard.tsx', crossing).length, 1);
+});
+
+test('a part importing a file no part claims breaks the plan (no slipping past through a helper), unless git ignores it', () => {
+  const { repo, write, done } = tempRepo();
+  try {
+    write('src/helpers/bridge.ts', "import { db } from '../data/db';\nexport const bridge = db;\n"); // outside every part: may use parts
+    write('src/ui/page.ts', "import { fmt } from '../shared/fmt';\nimport { bridge } from '../helpers/bridge';\n");
+    write('.gitignore', 'src/generated/\n');
+    write('src/generated/client.ts', 'export const client = 1;\n'); // generated code isn't the project's
+    write('src/ui/list.ts', "import { client } from '../generated/client';\n");
+    const plan = readRules(repo), files = diskImports(repo, plan);
+    assert.deepEqual([...files].flatMap(([rel, imps]) => violationsIn(plan, rel, imps).map((v) => [rel, v.line, v.to, v.target])),
+      [['src/ui/page.ts', 2, '~unmapped', 'src/helpers/bridge.ts']]);
+    assert.deepEqual(buildGraph(plan, files).edges.map((e) => [e.from, e.to, e.kind]).sort(),
+      [['ui', 'shared', 'allowed'], ['ui', '~unmapped', 'violation'], ['~unmapped', 'data', 'unchecked']]);
+    const hook = (rel) => {
+      const input = JSON.stringify({ tool_name: 'Write', tool_input: { file_path: path.join(repo, rel) } });
+      try { execFileSync('node', [fileURLToPath(new URL('../src/hook.js', import.meta.url))], { input, env: { ...process.env, CLAUDE_PROJECT_DIR: repo, AL_DENTE_PORT: '9' }, stdio: 'pipe' }); return { code: 0, err: '' }; }
+      catch (e) { return { code: e.status, err: e.stderr.toString() }; }
+    };
+    const r = hook('src/ui/page.ts');
+    assert.equal(r.code, 2);
+    assert.match(r.err, /line 2: imports "\.\.\/helpers\/bridge" \(src\/helpers\/bridge\.ts\), which no part claims/);
+    assert.match(r.err, /^To fix: move the files no part claims into a part ui may use \(shared\)/m);
+    assert.equal(hook('src/ui/list.ts').code, 0, 'generated code git ignores');
+    assert.equal(hook('src/helpers/bridge.ts').code, 0, 'files outside every part may use parts');
+    // The message names the allowed way through the plan, so the fix needs no search.
+    write('al-dente.json', JSON.stringify({ parts: { ui: { paths: ['src/ui'], uses: ['shared'] }, shared: { paths: ['src/shared'], uses: ['data'] }, data: { paths: ['src/data'], uses: [] } } }));
+    write('src/ui/deep.ts', "import { db } from '../data/db';\n");
+    assert.match(hook('src/ui/deep.ts').err, /^To fix: reach data through shared \(ui → shared → data\)\.$/m);
+  } finally { done(); }
+});
+
+test('survey: folders grouped to a readable size (one-way chains passed through) and the imports between them', () => {
+  const s = survey(fileURLToPath(new URL('./fixtures/java', import.meta.url)));
+  const shop = 'src/main/java/com/acme/shop';
+  assert.deepEqual(s.groups.map((g) => [g.path, g.files]),
+    [[`${shop}/App.java`, 1], [`${shop}/data`, 3], [`${shop}/service`, 1], [`${shop}/shared`, 1], [`${shop}/web`, 1], ['tools', 2]]);
+  assert.deepEqual(s.edges.map((e) => [e.from, e.to, e.count]), [[0, 4, 1], [2, 1, 2], [2, 3, 1], [4, 1, 2], [4, 2, 1]]);
+  const text = surveyText(survey(root)); // the TypeScript shop: the shared start of the paths is said once
+  assert.match(text, /^Folders \(paths below src\/\): files, most connected files$/m);
+  assert.match(text, /^ {2}4\. screens +1 {2}HomeScreen\.tsx$/m);
+  assert.match(text, /^ {2}4 → 1: 1, 3: 1$/m);
 });
 
 /** A throwaway repo: ui may use shared, nothing may use data. */
