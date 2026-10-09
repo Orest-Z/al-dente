@@ -191,8 +191,13 @@ test('a part importing a file no part claims breaks the plan (no slipping past t
     const r = hook('src/ui/page.ts');
     assert.equal(r.code, 2);
     assert.match(r.err, /line 2: imports "\.\.\/helpers\/bridge" \(src\/helpers\/bridge\.ts\), which no part claims/);
+    assert.match(r.err, /^To fix: move the files no part claims into a part ui may use \(shared\)/m);
     assert.equal(hook('src/ui/list.ts').code, 0, 'generated code git ignores');
     assert.equal(hook('src/helpers/bridge.ts').code, 0, 'files outside every part may use parts');
+    // The message names the allowed way through the plan, so the fix needs no search.
+    write('al-dente.json', JSON.stringify({ parts: { ui: { paths: ['src/ui'], uses: ['shared'] }, shared: { paths: ['src/shared'], uses: ['data'] }, data: { paths: ['src/data'], uses: [] } } }));
+    write('src/ui/deep.ts', "import { db } from '../data/db';\n");
+    assert.match(hook('src/ui/deep.ts').err, /^To fix: reach data through shared \(ui → shared → data\)\.$/m);
   } finally { done(); }
 });
 
