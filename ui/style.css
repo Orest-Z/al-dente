@@ -467,6 +467,7 @@ body.past .legend .live-only { display: none; }
 .chip.unused { border-style: dashed; }
 .chip.bad { border-color: color-mix(in oklab, var(--critical) 55%, transparent); }
 .rows { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.rows > li { min-width: 0; } /* long paths shrink to an ellipsis instead of widening the panel */
 .row {
   display: flex; align-items: center; gap: 8px;
   width: 100%;

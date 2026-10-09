@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Plan a new app's architecture and tech stack (fitted to what the user cares about most, like lightweight, polished UI or shipping fast), or map an existing TypeScript, JavaScript or Python app's architecture, into al-dente.json (the parts of the app and which part may use which), which al-dente then enforces on every edit and shows on a live map. Use when starting a new app, when the user asks to design, plan or decide the architecture, to "set up al-dente", or to map an existing codebase into parts.
+description: Plan a new app's architecture and tech stack (fitted to what the user cares about most, like lightweight, polished UI or shipping fast), or map an existing TypeScript, JavaScript, Python or Java app's architecture, into al-dente.json (the parts of the app and which part may use which), which al-dente then enforces on every edit and shows on a live map. Use when starting a new app, when the user asks to design, plan or decide the architecture, to "set up al-dente", or to map an existing codebase into parts.
 ---
 
 # Architecture plan for al-dente
@@ -23,9 +23,10 @@ description: Plan a new app's architecture and tech stack (fitted to what the us
 
 - `paths`: folders (or files) relative to the project root. A file belongs to the part with the longest matching path, so `src/features/cart` can be its own part inside `src/features`.
 - Python: paths are package folders, like `app/api` or `src/shop/services`. A part may list several folders, such as a group of Django apps (`["shop/users", "shop/orders"]`).
+- Java: paths are package folders, like `src/main/java/com/acme/shop/web`, or whole Maven or Gradle modules (`billing`, `api`). A class's folder must match its `package` line, as Maven, Gradle and IDEs expect.
 - `uses`: the parts this part may import from. Imports inside a part are always allowed.
 - Part order sets the map colors. Put the parts people look at most first.
-- Tests, stories and migrations are left out of the architecture by default. Only add an `"ignore": [globs]` list if the project keeps tests or other non-production code somewhere the defaults miss (they cover `*.test.*`, `*.spec.*`, `__tests__/`, `__mocks__/`, `test/`, `tests/`, `e2e/`, `*.stories.*`, `test_*.py`, `*_test.py`, `conftest.py`, `migrations/*.py` and `alembic/versions/*.py`).
+- Tests, stories and migrations are left out of the architecture by default. Only add an `"ignore": [globs]` list if the project keeps tests or other non-production code somewhere the defaults miss (they cover `*.test.*`, `*.spec.*`, `__tests__/`, `__mocks__/`, `test/`, `tests/`, `e2e/`, `*.stories.*`, `test_*.py`, `*_test.py`, `conftest.py`, `migrations/*.py`, `alembic/versions/*.py`, and Java's `src/androidTest/`, `src/integrationTest/` and `src/testFixtures/`).
 
 ## New project
 
@@ -48,7 +49,7 @@ The whole decision takes the user two clicks: one for what they care about, one 
    - **its parts and which part may use which**. This becomes the rules al-dente enforces, so get the arrows right;
    - **its stack**: language, framework, and the few libraries that matter (UI kit, data layer, auth, hosting), each fitted to the user's priority. See "Choosing the stack";
    - who it suits, and its trade-off;
-   - **what al-dente can't check**. al-dente reads TypeScript, JavaScript and Python. A part written in another language (C#, Java, Kotlin, Go, Rust, Swift, Dart, PHP, Ruby, …) won't show on the live map and its imports won't be checked. Java and C# support is planned; the others are not yet. Never drop the best stack because al-dente can't read it: give the warning and let the user choose;
+   - **what al-dente can't check**. al-dente reads TypeScript, JavaScript, Python and Java. A part written in another language (C#, Kotlin, Go, Rust, Swift, Dart, PHP, Ruby, …) won't show on the live map and its imports won't be checked. C# and Kotlin support is planned; the others are not yet. Never drop the best stack because al-dente can't read it: give the warning and let the user choose;
    - what this machine is missing to build it. Check quietly (`node --version`, `python --version`, `dotnet --version`, …).
 
 4. **Click 2: the choice.** Before the question, write two or three sentences: which option you recommend and why, tied to the user's priority. No longer write-up. Then one `AskUserQuestion` call, single select, header `Architecture`, one option per architecture, the recommended one first with " (Recommended)" at the end of its label. Each option has:
