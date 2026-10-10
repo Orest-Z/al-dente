@@ -14,6 +14,7 @@
   <a href="#what-it-understands"><img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript"></a>
   <a href="#what-it-understands"><img src="https://img.shields.io/badge/Python-3776AB?logo=python&logoColor=white" alt="Python"></a>
   <a href="#what-it-understands"><img src="https://img.shields.io/badge/Java-ED8B00?logo=openjdk&logoColor=white" alt="Java"></a>
+  <a href="https://www.npmjs.com/package/al-dente"><img src="https://img.shields.io/npm/v/al-dente?color=CB3837&logo=npm" alt="npm"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/dependencies-0-2FBF5B" alt="Zero dependencies"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-555" alt="MIT license"></a>
 </p>
@@ -63,7 +64,7 @@ On the map, open any part to see its files, each with a one-line description (fr
 
 Needs [Node.js](https://nodejs.org) 20 or newer and git on your PATH: the hooks run on Node, and Claude Code's native installer doesn't include it.
 
-Then, in your project, ask Claude to design or map the architecture, and to open the live map. From a terminal, the same map is `npx al-dente` (the npm package is coming soon; until then, `node bin/al-dente.js` from a clone).
+Then, in your project, ask Claude to design or map the architecture, and to open the live map. From a terminal, the same map is `npx al-dente`, no install needed.
 
 ## Commands
 
@@ -74,7 +75,7 @@ npx al-dente survey     # an existing project's folders and the imports between 
 npx al-dente diff main  # what this branch does to the architecture (Markdown); exit 1 only on breaks it adds
 ```
 
-Options: `--root <dir>`, `--port <n>`, `--no-open`; for `diff`: `--head <rev>` (default: the working tree) and `--json`. Until the npm release, run them as `node bin/al-dente.js …` from a clone.
+Options: `--root <dir>`, `--port <n>`, `--no-open`; for `diff`: `--head <rev>` (default: the working tree) and `--json`.
 
 ## Pull request check (GitHub Actions)
 
