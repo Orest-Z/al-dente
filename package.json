@@ -4,7 +4,7 @@
   "description": "A live architecture map your coding agent has to respect. Keeps vibe-coded apps from turning into spaghetti.",
   "author": "Orest Zogju",
   "license": "MIT",
-  "homepage": "https://orest-z.github.io/al-dente/",
+  "homepage": "https://orest-z.github.io/al-dente-site/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Orest-Z/al-dente.git"
