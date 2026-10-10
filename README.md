@@ -8,6 +8,7 @@
 <p align="center"><b>Keeps your vibe-coded app from turning into spaghetti.</b></p>
 
 <p align="center">
+  <a href="https://orest-z.github.io/al-dente-site/"><img src="https://img.shields.io/badge/website-al_dente-E8552B" alt="Website"></a>
   <a href="#install-claude-code"><img src="https://img.shields.io/badge/Claude_Code-plugin-D97757?logo=claude&logoColor=white" alt="Claude Code plugin"></a>
   <a href="#what-it-understands"><img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript"></a>
   <a href="#what-it-understands"><img src="https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black" alt="JavaScript"></a>
@@ -20,10 +21,10 @@
 **al dente** is a live architecture map that your coding agent has to respect. You agree on a plan once (the parts of your app, and which part may use which). After that, every edit Claude makes is checked against the plan and shown on the map as it happens.
 
 <p align="center">
-  <a href="https://orest-z.github.io/al-dente/#demo"><img src="https://orest-z.github.io/al-dente/media/demo.gif" width="900" alt="al dente in action: Claude asks what matters and proposes stacks, the plan becomes a live map, a phone page imports server code, the arrow turns red, the hook tells Claude and Claude fixes it. Then the benchmark: rule breaks drop from 37% to 0%."></a>
+  <a href="https://orest-z.github.io/al-dente-site/#demo"><img src="https://orest-z.github.io/al-dente-site/media/demo.gif" width="900" alt="al dente in action: Claude asks what matters and proposes stacks, the plan becomes a live map, a phone page imports server code, the arrow turns red, the hook tells Claude and Claude fixes it. Then the benchmark: rule breaks drop from 37% to 0%."></a>
 </p>
 
-<p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot. <a href="https://orest-z.github.io/al-dente/#demo">Watch the full 77-second video (with sound)</a>.</sub></p>
+<p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot. <a href="https://orest-z.github.io/al-dente-site/#demo">Watch the full 77-second video (with sound)</a>.</sub></p>
 
 <!-- Demo video: to play it inline here, drag demo.mp4 (al-dente-site, public/media) onto the empty line below in GitHub's README editor. GitHub hosts the upload, so it adds nothing to this repo. -->
 
