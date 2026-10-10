@@ -1,0 +1,29 @@
+# Runs the test suite and a CLI smoke check on every pull request and every push to main, on the systems and Node
+# versions people run the plugin on. The hooks run on users' own machines, so Windows and macOS matter as much as Linux.
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false # see every system that breaks, not just the first
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test # no dependencies to install
+      - name: CLI smoke check on the bundled example
+        run: node bin/al-dente.js check --root examples/shop
