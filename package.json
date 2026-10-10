@@ -34,7 +34,8 @@
     "ui"
   ],
   "scripts": {
-    "test": "node --test test/core.test.js"
+    "test": "node --test test/core.test.js",
+    "prepublishOnly": "npm test"
   },
   "engines": {
     "node": ">=20"
