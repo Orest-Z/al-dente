@@ -12,6 +12,10 @@
   "bugs": {
     "url": "https://github.com/Orest-Z/al-dente/issues"
   },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/Orest-Z"
+  },
   "keywords": [
     "claude-code",
     "claude-code-plugin",

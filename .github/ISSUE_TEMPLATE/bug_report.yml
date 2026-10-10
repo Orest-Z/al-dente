@@ -1,0 +1,47 @@
+name: Bug report
+description: al dente got something wrong, crashed, or blocked an edit it shouldn't have.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what al dente said or did, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The smallest file and plan that show it. Paste the relevant part of al-dente.json, the import line, and the hook message if there was one.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: al dente version
+      placeholder: "1.1.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - Claude Code plugin (hook or skill)
+        - Live map
+        - Command line (check, survey, diff)
+        - GitHub Action
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: OS and Node version
+      placeholder: "Windows 11, Node 22.11"
+    validations:
+      required: true
+  - type: input
+    id: lang
+    attributes:
+      label: Project language and layout
+      placeholder: "TypeScript monorepo with tsconfig paths"
