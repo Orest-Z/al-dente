@@ -25,7 +25,7 @@
 
 <p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot. <a href="https://orest-z.github.io/al-dente/#demo">Watch the full 77-second video (with sound)</a>.</sub></p>
 
-<!-- Demo video: in GitHub's README editor, drag docs/media/demo.mp4 onto the empty line below. GitHub uploads it and inserts a link that plays inline. -->
+<!-- Demo video: to play it inline here, drag demo.mp4 (al-dente-site, public/media) onto the empty line below in GitHub's README editor. GitHub hosts the upload, so it adds nothing to this repo. -->
 
 
 
