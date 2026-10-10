@@ -20,10 +20,10 @@
 **al dente** is a live architecture map that your coding agent has to respect. You agree on a plan once (the parts of your app, and which part may use which). After that, every edit Claude makes is checked against the plan and shown on the map as it happens.
 
 <p align="center">
-  <a href="docs/media/demo.mp4"><img src="docs/media/demo.gif" width="900" alt="al dente in action: Claude asks what matters and proposes stacks, the plan becomes a live map, a phone page imports server code, the arrow turns red, the hook tells Claude and Claude fixes it. Then the benchmark: rule breaks drop from 37% to 0%."></a>
+  <a href="https://orest-z.github.io/al-dente/#demo"><img src="https://orest-z.github.io/al-dente/media/demo.gif" width="900" alt="al dente in action: Claude asks what matters and proposes stacks, the plan becomes a live map, a phone page imports server code, the arrow turns red, the hook tells Claude and Claude fixes it. Then the benchmark: rule breaks drop from 37% to 0%."></a>
 </p>
 
-<p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot. <a href="docs/media/demo.mp4">Watch the full 77-second video (with sound)</a>.</sub></p>
+<p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot. <a href="https://orest-z.github.io/al-dente/#demo">Watch the full 77-second video (with sound)</a>.</sub></p>
 
 <!-- Demo video: in GitHub's README editor, drag docs/media/demo.mp4 onto the empty line below. GitHub uploads it and inserts a link that plays inline. -->
 
