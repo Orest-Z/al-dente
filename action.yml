@@ -1,5 +1,5 @@
 name: al-dente architecture check
-description: "Shows what each pull request does to your architecture, and fails only when it adds imports your al-dente.json plan doesn't allow."
+description: "Shows what each pull request does to your architecture. Fails only on new imports that break your al-dente.json plan."
 author: Orest Zogju
 branding:
   icon: layers
