@@ -1,0 +1,21 @@
+name: Feature or language request
+description: Something al dente should do, or a language or coding agent it should support.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What goes wrong today, or what you can't do. A real example helps most.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help
+      description: How you'd like al dente to handle it.
+  - type: input
+    id: stack
+    attributes:
+      label: Your stack
+      placeholder: "Kotlin + Gradle, used with Cursor"

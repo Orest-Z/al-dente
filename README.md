@@ -155,6 +155,12 @@ Try it on the bundled example:
 node bin/al-dente.js --root examples/shop
 ```
 
+## Contributing and support
+
+Bug reports, ideas and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Found a security problem? Please report it privately, as [SECURITY.md](SECURITY.md) explains.
+
+If al dente saves you from spaghetti, you can [sponsor its development](https://github.com/sponsors/Orest-Z).
+
 ## License
 
 MIT © 2026 [Orest Zogju](https://github.com/Orest-Z). See [LICENSE](LICENSE).
