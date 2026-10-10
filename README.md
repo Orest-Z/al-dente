@@ -17,6 +17,7 @@
   <a href="https://www.npmjs.com/package/al-dente"><img src="https://img.shields.io/npm/v/al-dente?color=CB3837&logo=npm" alt="npm"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/dependencies-0-2FBF5B" alt="Zero dependencies"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-555" alt="MIT license"></a>
+  <a href="https://github.com/sponsors/Orest-Z"><img src="https://img.shields.io/github/sponsors/Orest-Z?label=Sponsor&logo=GitHub&color=EA4AAA" alt="Sponsor"></a>
 </p>
 
 **al dente** is a live architecture map that your coding agent has to respect. You agree on a plan once (the parts of your app, and which part may use which). After that, every edit Claude makes is checked against the plan and shown on the map as it happens.
@@ -160,6 +161,12 @@ node bin/al-dente.js --root examples/shop
 Bug reports, ideas and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). Found a security problem? Please report it privately, as [SECURITY.md](SECURITY.md) explains.
 
 If al dente saves you from spaghetti, you can [sponsor its development](https://github.com/sponsors/Orest-Z).
+
+## Sponsors
+
+Thanks to everyone who keeps al dente cooking:
+
+<!-- sponsors --><!-- sponsors -->
 
 ## License
 
