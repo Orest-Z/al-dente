@@ -20,15 +20,13 @@
 **al dente** is a live architecture map that your coding agent has to respect. You agree on a plan once (the parts of your app, and which part may use which). After that, every edit Claude makes is checked against the plan and shown on the map as it happens.
 
 <p align="center">
-  <img src="docs/media/demo.gif" width="900" alt="The live map while Claude builds a shop: a browser page imports server code, the Web to Auth arrow turns red, al-dente's hook sends the rule back to Claude, and Claude fixes it by going through the API.">
+  <a href="docs/media/demo.mp4"><img src="docs/media/demo.gif" width="900" alt="al dente in action: Claude asks what matters and proposes stacks, the plan becomes a live map, a phone page imports server code, the arrow turns red, the hook tells Claude and Claude fixes it. Then the benchmark: rule breaks drop from 37% to 0%."></a>
 </p>
 
-<p align="center"><sub>Real footage: Claude building a small shop with al dente watching. A browser page reaches into server code, the hook tells Claude on the spot, and Claude reroutes it through the API.</sub></p>
+<p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot. <a href="docs/media/demo.mp4">Watch the full 77-second video (with sound)</a>.</sub></p>
 
-<!-- 1-minute demo video: in GitHub's README editor, drag demo-github.mp4 onto the empty line below. GitHub uploads it and inserts a link that plays inline. -->
+<!-- Demo video: in GitHub's README editor, drag docs/media/demo.mp4 onto the empty line below. GitHub uploads it and inserts a link that plays inline. -->
 
-
-https://github.com/user-attachments/assets/057760bb-f509-4e1a-9b0c-65433329d516
 
 
 
