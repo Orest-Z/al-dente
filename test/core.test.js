@@ -41,10 +41,17 @@ test('import scanning ignores comments and strings that only look like imports',
     "const lazy = () => import('./lazy');",
     "const old = require('./old');",
     'import.meta.url;',
+    // Strings and templates whose text only looks like an import: code generators, docs, snippets.
+    "const tpl = \"import { db } from '../data/db'\";",
+    "const say = 'it\\'s require(\"./not-a-require\")';",
+    'const gen = `export * from "./generated";\n  import x from "./also-not";`;',
+    // Code inside `${}` is code, even with braces and a nested template in it.
+    'const msg = `loaded ${(await import("./in-template")).name} and ${ { a: `${require("./nested")}` }.a }`;',
+    "import after from './after-templates';",
   ].join('\n');
   assert.deepEqual(
     scanImports(src).map((i) => i.spec),
-    ['./a', './types', './re-export', './multi-line', './lazy', './old'],
+    ['./a', './types', './re-export', './multi-line', './lazy', './old', './in-template', './nested', './after-templates'],
   );
 });
 
