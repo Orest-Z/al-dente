@@ -22,14 +22,9 @@
 
 **al dente** is a live architecture map that your coding agent has to respect. You agree on a plan once (the parts of your app, and which part may use which). After that, every edit Claude makes is checked against the plan and shown on the map as it happens.
 
-<p align="center">
-  <a href="https://orest-z.github.io/al-dente-site/#demo"><img src="https://orest-z.github.io/al-dente-site/media/demo.gif" width="900" alt="al dente in action: Claude asks what matters and proposes stacks, the plan becomes a live map, a phone page imports server code, the arrow turns red, the hook tells Claude and Claude fixes it. Then the benchmark: rule breaks drop from 37% to 0%."></a>
-</p>
+<p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot.</sub></p>
 
-<p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot. <a href="https://orest-z.github.io/al-dente-site/#demo">Watch the full 77-second video (with sound)</a>.</sub></p>
-
-<!-- Demo video: to play it inline here, drag demo.mp4 (al-dente-site, public/media) onto the empty line below in GitHub's README editor. GitHub hosts the upload, so it adds nothing to this repo. -->
-
+https://github.com/user-attachments/assets/f3c63458-e1c5-493b-9ec8-0f52ed006925
 
 
 
