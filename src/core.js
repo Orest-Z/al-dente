@@ -420,7 +420,9 @@ export function createResolver(/** @type {string} */ root, /** @type {SourceIO} 
           ? spec.slice(star, spec.length - (pattern.length - star - 1)) : null;
       if (match === null) continue;
       for (const t of targets) {
-        const file = resolveFile(path.resolve(base, t.replace('*', match)));
+        // Splice the match in by position: a string passed to replace() would read `$&` or `$'` in it as patterns.
+        const at = t.indexOf('*');
+        const file = resolveFile(path.resolve(base, at === -1 ? t : t.slice(0, at) + match + t.slice(at + 1)));
         if (file) return file;
       }
     }

@@ -195,13 +195,23 @@ const ROLES = /** @type {Record<string, string>} */ ({
   Repository: 'Repository', Entity: 'Database entity', Configuration: 'Configuration', Component: 'Component',
 });
 
+/** Drop HTML tags in one walk: each "<" up to the next ">" goes, and a "<" with no ">" after it goes on its own, so no piece of a tag is left. */
+const stripTags = (/** @type {string} */ s) => {
+  let out = '';
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] !== '<') { out += s[i]; continue; }
+    const end = s.indexOf('>', i);
+    if (end !== -1) i = end;
+  }
+  return out;
+};
+
 /** Javadoc markup -> plain text: {@link a.b.C#m(X, Y)} -> C.m(), {@code x} -> x, <p> -> a paragraph break, other tags dropped. */
-const plainJavadoc = (/** @type {string} */ raw) => raw
+const plainJavadoc = (/** @type {string} */ raw) => stripTags(raw
   .replace(/\{@(?:link|linkplain)\s+([^\s}(]+)(\([^)]*\))?\s*([^}]*)\}/g, (_, ref, args, label) =>
     label.trim() || ref.replace(/^(?:[a-z_$][\w$]*\.)+/, '').replace(/^#/, '').replace('#', '.') + (args ? '()' : ''))
   .replace(/\{@(?:code|literal|value)\s*([^}]*)\}/g, '$1')
-  .replace(/<\/?p\s*\/?>/gi, '\n\n')
-  .replace(/<[^>]+>/g, '');
+  .replace(/<\/?p\s*\/?>/gi, '\n\n'));
 
 /**
  * What a Java file is for, in one line: the Javadoc of its main class (the one named like the file), else a summary:
