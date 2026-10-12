@@ -24,7 +24,8 @@
 
 <p align="center"><sub>Pick an architecture, watch it as a live map, and see a broken rule caught and fixed on the spot.</sub></p>
 
-https://github.com/user-attachments/assets/f3c63458-e1c5-493b-9ec8-0f52ed006925
+https://github.com/user-attachments/assets/7ac148c6-7a58-4ef9-86e4-7014741bd1c5
+
 
 
 
