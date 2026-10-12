@@ -102,12 +102,16 @@ export function diffArchitecture(root, { base, head } = {}) {
 
 /** The PR comment: a verdict, the parts as a Mermaid diagram, then the details. */
 export function toMarkdown(/** @type {ArchDiff} */ d) {
-  const label = (/** @type {string} */ id) => (id === UNMAPPED ? 'Unmapped files' : d.labels[id] ?? id);
+  // Names from the plan and the file tree come from the pull request itself, so they must not be able to break out of a
+  // table row, a code span or the diagram and dress up the report (a fake verdict, a closed <details>).
+  const text = (/** @type {string} */ s) => String(s).replace(/\s*[\r\n]+\s*/g, ' ')
+    .replace(/[\\&<>|]/g, (c) => (/** @type {Record<string, string>} */ ({ '\\': '\\\\', '&': '&amp;', '<': '&lt;', '>': '&gt;', '|': '\\|' }))[c]);
+  const label = (/** @type {string} */ id) => (id === UNMAPPED ? 'Unmapped files' : text(d.labels[id] ?? id));
   const plural = (/** @type {number} */ n, /** @type {string} */ w) => `${n} ${w}${n === 1 ? '' : 's'}`;
   const arrow = (/** @type {{ from: string, to: string }} */ e) => `${label(e.from)} → ${label(e.to)}`;
-  const code = (/** @type {string} */ s) => `\`${s.replace(/`/g, "'")}\``;
+  const code = (/** @type {string} */ s) => `\`${String(s).replace(/`/g, "'").replace(/[\r\n]+/g, ' ').replace(/[\\|]/g, '\\$&')}\``;
   const at = (/** @type {string} */ file, /** @type {number} */ line) =>
-    d.web && !d.worktree ? `[${code(`${file}:${line}`)}](${d.web}/blob/${d.head}/${d.prefix}${file}#L${line})` : code(`${file}:${line}`);
+    d.web && !d.worktree ? `[${code(`${file}:${line}`)}](${d.web}/blob/${d.head}/${encodeURI(d.prefix + file).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}#L${line})` : code(`${file}:${line}`);
   const more = (/** @type {number} */ n) => (n > MAX_ROWS ? [`\n…and ${n - MAX_ROWS} more.`] : []);
   const key = (/** @type {{ from: string, to: string }} */ e) => `${e.from}>${e.to}`;
   const existing = d.graph.violations - d.broke.length;
@@ -141,7 +145,7 @@ export function toMarkdown(/** @type {ArchDiff} */ d) {
   const isNew = new Set(added.map(key));
   const newBreak = new Set(d.broke.map((v) => key({ from: v.from, to: v.to })));
   const mm = ['```mermaid', 'flowchart TD'];
-  for (const p of d.graph.parts) mm.push(`  ${node(p.id)}["${p.label.replace(/"/g, '#quot;')}"]`);
+  for (const p of d.graph.parts) mm.push(`  ${node(p.id)}["${String(p.label).replace(/[\r\n]+/g, ' ').replace(/["<>]/g, (c) => ({ '"': '#quot;', '<': '#lt;', '>': '#gt;' })[c])}"]`);
   if ([...d.graph.edges, ...removed].some((e) => e.from === UNMAPPED || e.to === UNMAPPED)) mm.push('  unmapped["Unmapped files"]:::unmapped');
   /** @type {string[]} */
   const styles = [];
