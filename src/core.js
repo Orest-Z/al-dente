@@ -144,11 +144,25 @@ const allowed = (/** @type {Rules} */ rules, /** @type {string} */ from, /** @ty
 /**
  * Blank out comments (keeping every newline, so positions and line numbers stay true)
  * while stepping over strings, so "//" inside a URL string isn't mistaken for a comment.
- * ponytail: regex literals and `${}` with nested backticks aren't lexed; they're rare around imports.
+ * Pass `strings` to also get where each string's text is (template literals in pieces: the code inside `${}` is code).
+ * ponytail: regex literals aren't lexed; they're rare around imports.
  */
-export function stripComments(/** @type {string} */ src, /** @type {{ start: number, end: number }[]=} */ comments) {
+export function stripComments(
+  /** @type {string} */ src,
+  /** @type {{ start: number, end: number }[]=} */ comments,
+  /** @type {{ start: number, end: number }[]=} */ strings,
+) {
   const out = [];
-  let last = 0, i = 0;
+  /** @type {number[]} brace depth at each open `${`, innermost last */
+  const holes = [];
+  let last = 0, i = 0, depth = 0;
+  /** Step through template text from `i` to its closing backtick or the next `${`. */
+  const template = () => {
+    const start = i;
+    for (; i < src.length && src[i] !== '`' && !(src[i] === '$' && src[i + 1] === '{'); i++) if (src[i] === '\\') i++;
+    strings?.push({ start, end: Math.min(i, src.length) });
+    if (src[i] === '$') { holes.push(depth++); i += 2; } else i++;
+  };
   while (i < src.length) {
     const c = src[i], d = src[i + 1];
     if (c === '/' && (d === '/' || d === '*')) {
@@ -157,14 +171,34 @@ export function stripComments(/** @type {string} */ src, /** @type {{ start: num
       comments?.push({ start: i, end });
       out.push(src.slice(last, i), src.slice(i, end).replace(/[^\n]/g, ' '));
       last = i = end;
-    } else if (c === '"' || c === "'" || c === '`') {
-      for (i++; i < src.length && src[i] !== c && (c === '`' || src[i] !== '\n'); i++) if (src[i] === '\\') i++;
+    } else if (c === '"' || c === "'") {
+      const start = i;
+      for (i++; i < src.length && src[i] !== c && src[i] !== '\n'; i++) if (src[i] === '\\') i++;
+      strings?.push({ start: start + 1, end: Math.min(i, src.length) });
       i++;
+    } else if (c === '`') { i++; template(); }
+    else if (c === '{') { depth++; i++; }
+    else if (c === '}') {
+      i++;
+      if (holes.length && holes.at(-1) === depth - 1) { holes.pop(); depth--; template(); } // back into the template's text
+      else depth = Math.max(0, depth - 1);
     } else i++;
   }
   out.push(src.slice(last));
   return out.join('');
 }
+
+/** Is `pos` inside one of these (sorted, non-overlapping) ranges? */
+const within = (/** @type {{ start: number, end: number }[]} */ ranges, /** @type {number} */ pos) => {
+  let lo = 0, hi = ranges.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1, r = ranges[mid];
+    if (pos < r.start) hi = mid - 1;
+    else if (pos >= r.end) lo = mid + 1;
+    else return true;
+  }
+  return false;
+};
 
 const IMPORT_PATTERNS = [
   /(?:^|[^\w$.])(?:import|export)\s*(?:type\s+)?(?:[\w$*{}\s,]+?\s*from\s*)?(['"])([^'"\n]+)\1/g, // import x from 'y', import 'y', export * from 'y'
@@ -174,11 +208,17 @@ const IMPORT_PATTERNS = [
 
 /** Every module specifier in a file, with the position of the specifier. */
 export function scanImports(/** @type {string} */ src) {
-  const code = stripComments(src);
+  /** @type {{ start: number, end: number }[]} */
+  const strings = [];
+  const code = stripComments(src, undefined, strings);
   /** @type {{ spec: string, pos: number }[]} */
   const found = [];
   for (const re of IMPORT_PATTERNS) {
-    for (const m of code.matchAll(re)) found.push({ spec: m[2], pos: /** @type {number} */ (m.index) + m[0].lastIndexOf(m[1] + m[2]) });
+    for (const m of code.matchAll(re)) {
+      const at = /** @type {number} */ (m.index);
+      if (within(strings, at + m[0].search(/import|export|require/))) continue; // text in a string that only looks like an import
+      found.push({ spec: m[2], pos: at + m[0].lastIndexOf(m[1] + m[2]) });
+    }
   }
   return found.sort((a, b) => a.pos - b.pos);
 }
