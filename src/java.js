@@ -201,7 +201,8 @@ const plainJavadoc = (/** @type {string} */ raw) => raw
     label.trim() || ref.replace(/^(?:[a-z_$][\w$]*\.)+/, '').replace(/^#/, '').replace('#', '.') + (args ? '()' : ''))
   .replace(/\{@(?:code|literal|value)\s*([^}]*)\}/g, '$1')
   .replace(/<\/?p\s*\/?>/gi, '\n\n')
-  .replace(/<[^>]+>/g, '');
+  .replace(/<[^>]*>/g, '')
+  .replace(/</g, ''); // whatever is left of a tag, like an unclosed "<script"
 
 /**
  * What a Java file is for, in one line: the Javadoc of its main class (the one named like the file), else a summary:
