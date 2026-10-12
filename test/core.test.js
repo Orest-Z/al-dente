@@ -55,6 +55,19 @@ test('import scanning ignores comments and strings that only look like imports',
   );
 });
 
+test('a path alias resolves names with $ in them literally ($& is not a replacement pattern)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'al-dente-alias-'));
+  try {
+    fs.mkdirSync(path.join(dir, 'src/lib'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'tsconfig.json'), '{ "compilerOptions": { "baseUrl": ".", "paths": { "@lib/*": ["src/lib/*"] } } }');
+    fs.writeFileSync(path.join(dir, 'src/lib/a$&b.ts'), 'export const x = 1;\n');
+    const r = createResolver(dir);
+    assert.deepEqual(r.importsOf('src/main.ts', "import { x } from '@lib/a$&b';\n").map((i) => i.target), ['src/lib/a$&b.ts']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('monorepo: workspace packages, tsconfig references, JSONC configs and .js-to-.ts imports', () => {
   const mono = fileURLToPath(new URL('./fixtures/mono', import.meta.url));
   const r = createResolver(mono);
@@ -133,6 +146,8 @@ test('java: single, static, nested and wildcard imports, names written out in co
   assert.equal(d(at('data/OrderRepository')), 'Interface: all, find');
   assert.equal(d(at('data/Status')), 'Enum: NEW, PAID, SHIPPED +1 more');
   assert.equal(d(at('App')), 'Entry point');
+  // No piece of a tag survives the cleanup, not even an unclosed one.
+  assert.equal(describeFile('Tag.java', '/** Uses <b>bold</b> and an unclosed <script tag. */\npublic class Tag {}\n').text, 'Uses bold and an unclosed script tag.');
 
   const { repo, git, write, done } = tempRepo();
   try {
