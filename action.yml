@@ -38,7 +38,9 @@ runs:
         if [ "$COMMENT" = true ] && [ -n "$PR" ]; then
           { echo '<!-- al-dente -->'; cat "$report"; } > "$report.body"
           api="repos/$GITHUB_REPOSITORY/issues"
-          id="$(gh api "$api/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- al-dente -->")) | .id' 2>/dev/null | grep -E '^[0-9]+$' | head -n1 || true)" # on an API error gh prints the error JSON instead
+          # Only our own earlier comment: anyone can post a comment starting with the marker, and updating theirs would
+          # put the report under their name (they could then edit it) or, if refused, leave the PR with no report at all.
+          id="$(gh api "$api/$PR/comments" --paginate --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- al-dente -->"))) | .id' 2>/dev/null | grep -E '^[0-9]+$' | head -n1 || true)" # on an API error gh prints the error JSON instead
           if [ -n "$id" ]; then gh api -X PATCH "$api/comments/$id" -F body=@"$report.body" > /dev/null
           else gh api "$api/$PR/comments" -F body=@"$report.body" > /dev/null
           fi || echo "::warning::al-dente couldn't comment on the pull request (pull requests from forks get a read-only token). The report is in the job summary."
