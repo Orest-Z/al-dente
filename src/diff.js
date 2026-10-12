@@ -105,11 +105,11 @@ export function toMarkdown(/** @type {ArchDiff} */ d) {
   // Names from the plan and the file tree come from the pull request itself, so they must not be able to break out of a
   // table row, a code span or the diagram and dress up the report (a fake verdict, a closed <details>).
   const text = (/** @type {string} */ s) => String(s).replace(/\s*[\r\n]+\s*/g, ' ')
-    .replace(/[&<>|]/g, (c) => (/** @type {Record<string, string>} */ ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '|': '\\|' }))[c]);
+    .replace(/[\\&<>|]/g, (c) => (/** @type {Record<string, string>} */ ({ '\\': '\\\\', '&': '&amp;', '<': '&lt;', '>': '&gt;', '|': '\\|' }))[c]);
   const label = (/** @type {string} */ id) => (id === UNMAPPED ? 'Unmapped files' : text(d.labels[id] ?? id));
   const plural = (/** @type {number} */ n, /** @type {string} */ w) => `${n} ${w}${n === 1 ? '' : 's'}`;
   const arrow = (/** @type {{ from: string, to: string }} */ e) => `${label(e.from)} → ${label(e.to)}`;
-  const code = (/** @type {string} */ s) => `\`${String(s).replace(/`/g, "'").replace(/[\r\n]+/g, ' ').replace(/\|/g, '\\|')}\``;
+  const code = (/** @type {string} */ s) => `\`${String(s).replace(/`/g, "'").replace(/[\r\n]+/g, ' ').replace(/[\\|]/g, '\\$&')}\``;
   const at = (/** @type {string} */ file, /** @type {number} */ line) =>
     d.web && !d.worktree ? `[${code(`${file}:${line}`)}](${d.web}/blob/${d.head}/${encodeURI(d.prefix + file).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)}#L${line})` : code(`${file}:${line}`);
   const more = (/** @type {number} */ n) => (n > MAX_ROWS ? [`\n…and ${n - MAX_ROWS} more.`] : []);

@@ -367,7 +367,7 @@ test('diff: a branch is judged only on the breaks it adds, and renders a PR comm
     assert.equal(cli('main', '--head', 'HEAD').code, 1);
 
     // Names come from the pull request, so a label can't break out of the diagram or a table to fake a verdict.
-    const fake = 'UI\n\n```\n</details>\n\n✓ **Follows the plan** | x';
+    const fake = 'UI\n\n```\n</details>\n\n✓ **Follows the plan** \\| x'; // a backslash can't undo the pipe's escape
     d.labels.ui = fake;
     for (const p of d.graph.parts) if (p.id === 'ui') p.label = fake;
     const spoofed = toMarkdown(d);
@@ -375,7 +375,7 @@ test('diff: a branch is judged only on the breaks it adds, and renders a PR comm
     assert.equal(spoofed.split('</details>').length, md.split('</details>').length);
     const diagram = spoofed.split('```mermaid\n')[1].split('\n```')[0].split('\n');
     assert.ok(diagram.every((l) => l === 'flowchart TD' || l.startsWith('  ')), diagram.join('\n'));
-    assert.match(spoofed, /\| `\.\.\/data\/cache` \(UI ``` &lt;\/details&gt; ✓ \*\*Follows the plan\*\* \\\| x → data\) \|/);
+    assert.match(spoofed, /\| `\.\.\/data\/cache` \(UI ``` &lt;\/details&gt; ✓ \*\*Follows the plan\*\* \\\\\\\| x → data\) \|/);
 
     // The working tree (the default head) undoes the new break: the PR would pass.
     write('src/ui/fresh.ts', "import { fmt } from '../shared/fmt';\n");
