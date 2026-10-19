@@ -162,7 +162,7 @@ If al dente saves you from spaghetti, you can [sponsor its development](https://
 
 Thanks to everyone who keeps al dente cooking:
 
-<!-- sponsors --><!-- sponsors -->
+<!-- sponsors -->No sponsors yet. [Be the first](https://github.com/sponsors/Orest-Z)!<!-- sponsors -->
 
 ## License
 
